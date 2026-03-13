@@ -205,3 +205,50 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+out/
+
+# Backend Python (if using)
+__pycache__/
+*.py[cod]
+
+# Env / secrets
+.env
+.env.local
+.env.production
+
+# Data (large & raw)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Optional: ignore large data file types project‑wide
+*.csv
+*.xlsx
+*.xls
+*.parquet
+
+# Models
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.pth
+*.ckpt
+models/*.pkl
+models/*.h5
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# OS junk
+.DS_Store
+Thumbs.db
