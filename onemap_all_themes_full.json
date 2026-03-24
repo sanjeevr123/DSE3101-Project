@@ -1,0 +1,1516 @@
+{
+  "Theme_Names": [
+    {
+      "THEMENAME": "After Death Facilities",
+      "QUERYNAME": "afterdeathfacilities",
+      "ICON": "coffina20.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Kindergartens",
+      "QUERYNAME": "kindergartens",
+      "ICON": "school.gif",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Education",
+      "THEME_OWNER": "EARLY CHILDHOOD DEVELOPMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Community Clubs",
+      "QUERYNAME": "communityclubs",
+      "ICON": "PA.jpg",
+      "EXPIRY_DATE": "30/12/2022",
+      "PUBLISHED_DATE": "31/12/2011",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "Constituency Offices",
+      "QUERYNAME": "constituencyoffices",
+      "ICON": "PA.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "Private Education Institutions",
+      "QUERYNAME": "cpe_pei_premises",
+      "ICON": "pink.jpg",
+      "EXPIRY_DATE": "26/07/2025",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Education",
+      "THEME_OWNER": "SKILLSFUTURE SINGAPORE"
+    },
+    {
+      "THEMENAME": "Licensed Premises for Liquors & Tabacco Products",
+      "QUERYNAME": "customs_tabacco_product",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE CUSTOMS"
+    },
+    {
+      "THEMENAME": "IPPT In Your Community",
+      "QUERYNAME": "hsgb_ippt",
+      "ICON": "HSGB_FCC.png",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "National Service",
+      "THEME_OWNER": "MINISTRY OF DEFENCE"
+    },
+    {
+      "THEMENAME": "Libraries",
+      "QUERYNAME": "libraries",
+      "ICON": "library.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Culture",
+      "THEME_OWNER": "NATIONAL LIBRARY BOARD"
+    },
+    {
+      "THEMENAME": "Other PA Networks",
+      "QUERYNAME": "otherpanetworks",
+      "ICON": "PA.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "PCN Access Points",
+      "QUERYNAME": "pcn_access_points",
+      "ICON": "icon36x36pcn.jpg",
+      "EXPIRY_DATE": "19/07/2022",
+      "PUBLISHED_DATE": "13/01/2015",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Waste Disposal Site",
+      "QUERYNAME": "wastedisposalsite",
+      "ICON": "disposala20.png",
+      "EXPIRY_DATE": "31/12/2019",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Water Ventures",
+      "QUERYNAME": "waterventure",
+      "ICON": "Water-Venture.gif",
+      "EXPIRY_DATE": "30/12/2022",
+      "PUBLISHED_DATE": "31/12/2011",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "LTA Bicycle Rack",
+      "QUERYNAME": "bicyclerack",
+      "ICON": "Bikepark.jpg",
+      "EXPIRY_DATE": "01/01/2028",
+      "PUBLISHED_DATE": "30/11/2016",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Heritage Road Green Buffers",
+      "QUERYNAME": "heritageroadgreenbuffer",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "SportSG Sport Facilities",
+      "QUERYNAME": "sportsg_sport_facilities",
+      "ICON": "RedDot(20x20px)clear.png",
+      "EXPIRY_DATE": "31/12/2024",
+      "PUBLISHED_DATE": "27/12/2013",
+      "CATEGORY": "Sports",
+      "THEME_OWNER": "SPORT SINGAPORE"
+    },
+    {
+      "THEMENAME": "NParks BBQ Pits",
+      "QUERYNAME": "nparks_bbq_pit",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "TradeNet Service Centres & Certified Vendors",
+      "QUERYNAME": "customs_tradenet_service",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE CUSTOMS"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Red Light Cameras",
+      "QUERYNAME": "spf_rlc",
+      "ICON": "SpeedCam_logo.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "08/02/2017",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Tree Conservation Area",
+      "QUERYNAME": "tree_conservation_area",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "HDB Car Park Information",
+      "QUERYNAME": "hdb_car_park_information",
+      "ICON": "map-carpark.jpg",
+      "EXPIRY_DATE": "31/12/2020",
+      "PUBLISHED_DATE": "30/06/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "PUB Water Level Sensors",
+      "QUERYNAME": "pub_waterlevelsensors",
+      "ICON": "Capture.PNG",
+      "EXPIRY_DATE": "31/12/2022",
+      "PUBLISHED_DATE": "18/12/2017",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "PUBLIC UTILITIES BOARD"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - 32nd ASEAN Summit Shangri-La Hotel Special Zone",
+      "QUERYNAME": "as_shangrila_core",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2023",
+      "PUBLISHED_DATE": "04/04/2018",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Electoral Boundary 2006",
+      "QUERYNAME": "ed_bdy_2009",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "ELECTIONS DEPARTMENT"
+    },
+    {
+      "THEMENAME": "Electoral Boundary 2015",
+      "QUERYNAME": "eld2015",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "ELECTIONS DEPARTMENT"
+    },
+    {
+      "THEMENAME": "Electoral Boundary 2011",
+      "QUERYNAME": "tb_msis_gaz_ed",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "ELECTIONS DEPARTMENT"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - 32nd ASEAN Summit Istana Special Zone",
+      "QUERYNAME": "as_istana_core",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2023",
+      "PUBLISHED_DATE": "04/04/2018",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - 32nd ASEAN Summit Istana Special Event Area",
+      "QUERYNAME": "as_istana_buffer",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2023",
+      "PUBLISHED_DATE": "04/04/2018",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - 32nd ASEAN Summit Shangri-La Hotel Special Event Area",
+      "QUERYNAME": "as_shangrila_buffer",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2023",
+      "PUBLISHED_DATE": "04/04/2018",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Coastal Habitats Map from High Resolution Satellite Imagery (2010/2011)",
+      "QUERYNAME": "singapore_cmhabitats_20102011",
+      "ICON": "null",
+      "EXPIRY_DATE": "30/12/2013",
+      "PUBLISHED_DATE": "31/12/2011",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "CAAS Zones for Solar PV Consultation",
+      "QUERYNAME": "solarpv_zones",
+      "ICON": "CAAS logo.png",
+      "EXPIRY_DATE": "25/09/2024",
+      "PUBLISHED_DATE": "26/09/2019",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "CIVIL AVIATION AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "Areas with High Aedes Population",
+      "QUERYNAME": "areas_hap",
+      "ICON": "mosquito.png",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "14/08/2019",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Road Speed Limit",
+      "QUERYNAME": "roadattributeline_speedlimits",
+      "ICON": "null",
+      "EXPIRY_DATE": "30/12/2017",
+      "PUBLISHED_DATE": "31/12/2011",
+      "CATEGORY": "null",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "LTA Road Construction Project (Unclassified)",
+      "QUERYNAME": "lta_rdproj_unclass",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Strengthening Families Programme",
+      "QUERYNAME": "strengtheningfam",
+      "ICON": "1map.jpg",
+      "EXPIRY_DATE": "31/07/2026",
+      "PUBLISHED_DATE": "08/12/2021",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "MINISTRY OF SOCIAL AND FAMILY DEVELOPMENT"
+    },
+    {
+      "THEMENAME": "Community Club / PAssion WaVe Outlet",
+      "QUERYNAME": "communityclubpassionwave",
+      "ICON": "PA.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - PCG Offshore Islands",
+      "QUERYNAME": "pcg_offshore_islands",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2023",
+      "PUBLISHED_DATE": "13/04/2022",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2022 Special Event Area",
+      "QUERYNAME": "ndp_22_sea",
+      "ICON": "spf_icon.jpg",
+      "EXPIRY_DATE": "30/08/2022",
+      "PUBLISHED_DATE": "01/08/2022",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2022 Special Zone",
+      "QUERYNAME": "ndp_22_sz",
+      "ICON": "spf_icon.jpg",
+      "EXPIRY_DATE": "30/08/2022",
+      "PUBLISHED_DATE": "01/08/2022",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Licensed Premises for Motor Vehicles",
+      "QUERYNAME": "customs_motor_vehicle",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE CUSTOMS"
+    },
+    {
+      "THEMENAME": "JTC Business Park Land",
+      "QUERYNAME": "jtc_luse_bp_bpw",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "JTC CORPORATION"
+    },
+    {
+      "THEMENAME": "Civil Defence Public Shelters",
+      "QUERYNAME": "civildefencepublicshelters",
+      "ICON": "Onemap.png",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "05/06/2018",
+      "CATEGORY": "Emergency Preparedness",
+      "THEME_OWNER": "SINGAPORE CIVIL DEFENCE FORCE"
+    },
+    {
+      "THEMENAME": "Hotels",
+      "QUERYNAME": "hotels",
+      "ICON": "hotel.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "HOTELS LICENSING BOARD"
+    },
+    {
+      "THEMENAME": "Healthier Caterers",
+      "QUERYNAME": "healthiercaterers",
+      "ICON": "HCS.jpg",
+      "EXPIRY_DATE": "31/01/2026",
+      "PUBLISHED_DATE": "02/04/2015",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH PROMOTION BOARD"
+    },
+    {
+      "THEMENAME": "SportSG DUS Sport Facilities",
+      "QUERYNAME": "sportsg_dus_sport_facilities",
+      "ICON": "20170810_DUS_ICON.png",
+      "EXPIRY_DATE": "31/12/2024",
+      "PUBLISHED_DATE": "11/08/2017",
+      "CATEGORY": "Sports",
+      "THEME_OWNER": "SPORT SINGAPORE"
+    },
+    {
+      "THEMENAME": "SportSG SIP Facilities",
+      "QUERYNAME": "sportsg_sip_facilities",
+      "ICON": "20170810_DUS_ICON.png",
+      "EXPIRY_DATE": "22/03/2024",
+      "PUBLISHED_DATE": "22/03/2018",
+      "CATEGORY": "Sports",
+      "THEME_OWNER": "SPORT SINGAPORE"
+    },
+    {
+      "THEMENAME": "Community Use Sites",
+      "QUERYNAME": "comm_use_sites",
+      "ICON": "recreation_sla.gif",
+      "EXPIRY_DATE": "30/04/2030",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "SINGAPORE LAND AUTHORITY"
+    },
+    {
+      "THEMENAME": "HDB Existing Building",
+      "QUERYNAME": "hdb_active_blk_p",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "Licensed premises for petroleum products",
+      "QUERYNAME": "customs_petroleum_product",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE CUSTOMS"
+    },
+    {
+      "THEMENAME": "Heritage Trees",
+      "QUERYNAME": "heritagetrees",
+      "ICON": "tree_icon_supercompressed.jpg",
+      "EXPIRY_DATE": "31/03/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2024 Special Zone",
+      "QUERYNAME": "ndp_24_sz",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Theatre",
+      "QUERYNAME": "theatre",
+      "ICON": "theatre_2788019.png",
+      "EXPIRY_DATE": "31/12/2029",
+      "PUBLISHED_DATE": "03/01/2024",
+      "CATEGORY": "Culture",
+      "THEME_OWNER": "NATIONAL ARTS COUNCIL"
+    },
+    {
+      "THEMENAME": "URA Parking Lot",
+      "QUERYNAME": "ura_parking_lot",
+      "ICON": "ParkingLot.png",
+      "EXPIRY_DATE": "31/12/2024",
+      "PUBLISHED_DATE": "01/10/2019",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "URBAN REDEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Areas within Restricted Areas",
+      "QUERYNAME": "restricted_areaspoly",
+      "ICON": "CAAS.JPG",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "18/07/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "CIVIL AVIATION AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "Residents' Committee / Residents' Network Centre",
+      "QUERYNAME": "residentscommittee",
+      "ICON": "RC_20.gif",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "Prohibited Drone flying areas at NParks Nature Reserves, Nature Parks and Gardens",
+      "QUERYNAME": "drone_no_fly",
+      "ICON": "LOGGGGGG.jpg",
+      "EXPIRY_DATE": "31/03/2026",
+      "PUBLISHED_DATE": "31/03/2022",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Liquor Control Zone under Public Order (Additional Temporary Measures) Act 2014",
+      "QUERYNAME": "liquor_control_zone",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Bloodbank locations",
+      "QUERYNAME": "blood_bank",
+      "ICON": "iconbloodbank_new.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "15/03/2014",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH SCIENCES AUTHORITY"
+    },
+    {
+      "THEMENAME": "Delivery waiting bay (bicycles)",
+      "QUERYNAME": "deliverywaitingbay_bicycle",
+      "ICON": "Delivery_Bike.png",
+      "EXPIRY_DATE": "31/12/2030",
+      "PUBLISHED_DATE": "28/10/2025",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "URBAN REDEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "NParks Tracks",
+      "QUERYNAME": "nparks_tracks",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Privately Owned Public Spaces (POPS)",
+      "QUERYNAME": "ura_popspoints_pt",
+      "ICON": "2 June 2025_P.O.P.S. Logo 20px.png",
+      "EXPIRY_DATE": "31/12/2030",
+      "PUBLISHED_DATE": "02/06/2025",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "URBAN REDEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "SCDF HQs and Training Establishments",
+      "QUERYNAME": "scdfhq",
+      "ICON": "SCDF.jpg",
+      "EXPIRY_DATE": "31/12/2024",
+      "PUBLISHED_DATE": "19/07/2013",
+      "CATEGORY": "Emergency Preparedness",
+      "THEME_OWNER": "SINGAPORE CIVIL DEFENCE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Digital Traffic Red Light Cameras",
+      "QUERYNAME": "spf_dtrls",
+      "ICON": "DTRLS--logo.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "02/04/2015",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Establishments",
+      "QUERYNAME": "spf_establishments",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "08/11/2012",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Fixed Speed Cameras",
+      "QUERYNAME": "spf_fsc",
+      "ICON": "SpeedCam_logo.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "05/12/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Areas within Danger Areas",
+      "QUERYNAME": "danger_areas",
+      "ICON": "CAAS logo.png",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "20/01/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "CIVIL AVIATION AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "Cycling Path Network",
+      "QUERYNAME": "cyclingpath",
+      "ICON": "2016-03-31-CYCLING LOGO-Blue.jpg",
+      "EXPIRY_DATE": "31/03/2024",
+      "PUBLISHED_DATE": "15/04/2016",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "CareersConnect",
+      "QUERYNAME": "wdaservicepoints",
+      "ICON": "WSQ.jpg",
+      "EXPIRY_DATE": "31/07/2024",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Employment",
+      "THEME_OWNER": "WORKFORCE SINGAPORE AGENCY"
+    },
+    {
+      "THEMENAME": "Community in Bloom (CIB)",
+      "QUERYNAME": "cib_gardens",
+      "ICON": "Resized-BHFPC.jpg",
+      "EXPIRY_DATE": "31/03/2027",
+      "PUBLISHED_DATE": "09/03/2016",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Park Connector Loop",
+      "QUERYNAME": "park_connector_loop",
+      "ICON": "image.jpg",
+      "EXPIRY_DATE": "31/03/2026",
+      "PUBLISHED_DATE": "30/04/2014",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Areas within 5km of aerodromes",
+      "QUERYNAME": "boundary_5km",
+      "ICON": "CAAS logo.png",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "20/01/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "CIVIL AVIATION AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "HDB Roads Under Construction",
+      "QUERYNAME": "hdbroadsunderconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "Retail pharmacy locations",
+      "QUERYNAME": "registered_pharmacy",
+      "ICON": "Pharmacies_new.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "15/03/2014",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH SCIENCES AUTHORITY"
+    },
+    {
+      "THEMENAME": "Hospitals",
+      "QUERYNAME": "moh_hospitals",
+      "ICON": "OM2_MOHicon_hospital_20px.png",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "21/10/2016",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "Social Service Agencies",
+      "QUERYNAME": "voluntarywelfareorgs",
+      "ICON": "onemap-fc-vwo.png",
+      "EXPIRY_DATE": "31/07/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Family",
+      "THEME_OWNER": "MINISTRY OF SOCIAL AND FAMILY DEVELOPMENT"
+    },
+    {
+      "THEMENAME": "Child Care Services",
+      "QUERYNAME": "childcare",
+      "ICON": "onemap-fc-childcare.png",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Family",
+      "THEME_OWNER": "EARLY CHILDHOOD DEVELOPMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Active Cemeteries",
+      "QUERYNAME": "activecemeteries",
+      "ICON": "circle.png",
+      "EXPIRY_DATE": "31/12/2025",
+      "PUBLISHED_DATE": "16/04/2020",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "LTA Parking Standards Zone",
+      "QUERYNAME": "parkingstandardszone",
+      "ICON": "psz-LOGO_20by20.png",
+      "EXPIRY_DATE": "31/12/2030",
+      "PUBLISHED_DATE": "28/03/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Locations of Remittance",
+      "QUERYNAME": "remittance",
+      "ICON": "onemap_Remittance_20.png",
+      "EXPIRY_DATE": "31/12/2029",
+      "PUBLISHED_DATE": "12/10/2015",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "MONETARY AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "NParks Buildings",
+      "QUERYNAME": "nparks_building",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "NParks Parks and Nature Reserves",
+      "QUERYNAME": "nparks_parks",
+      "ICON": "image.gif",
+      "EXPIRY_DATE": "31/03/2026",
+      "PUBLISHED_DATE": "07/03/2018",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Channels for Donation, Resale and Repair",
+      "QUERYNAME": "reusechannels",
+      "ICON": "icon.png",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "19/08/2022",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "URA Project (PUBLIC)",
+      "QUERYNAME": "ura_project_public_pl",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "URBAN REDEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Zika Cluster",
+      "QUERYNAME": "zika_cluster",
+      "ICON": "blankicon (onemap legacy).png",
+      "EXPIRY_DATE": "31/12/2030",
+      "PUBLISHED_DATE": "30/06/2025",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "LTA Road Camera",
+      "QUERYNAME": "lta_road_enforcement_camera",
+      "ICON": "icon_enforcementCam_20-01.jpg",
+      "EXPIRY_DATE": "01/01/2028",
+      "PUBLISHED_DATE": "24/04/2017",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "ABC Waters Construction",
+      "QUERYNAME": "abcwatersconstruction",
+      "ICON": "tender-map-abc.png",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "03/07/2018",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "PUBLIC UTILITIES BOARD"
+    },
+    {
+      "THEMENAME": "NAPFA Test Centre",
+      "QUERYNAME": "hsgb_napfa",
+      "ICON": "HSGB_FCC.png",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "National Service",
+      "THEME_OWNER": "MINISTRY OF DEFENCE"
+    },
+    {
+      "THEMENAME": "Community Mediation",
+      "QUERYNAME": "commmediationctr",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "MINISTRY OF LAW"
+    },
+    {
+      "THEMENAME": "CPF Service Centres",
+      "QUERYNAME": "cpfb_location",
+      "ICON": "logocpf.png",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "23/10/2012",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "CENTRAL PROVIDENT FUND BOARD"
+    },
+    {
+      "THEMENAME": "MCE KPE Speed Camera",
+      "QUERYNAME": "mce_kpe_speed_camera",
+      "ICON": "icon_enforcementCam_20-01.jpg",
+      "EXPIRY_DATE": "01/01/2028",
+      "PUBLISHED_DATE": "25/04/2017",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Dengue Clusters",
+      "QUERYNAME": "dengue_cluster",
+      "ICON": "mosquitoa20.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "26/06/2013",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "SAFRA Centres",
+      "QUERYNAME": "hsgb_safra",
+      "ICON": "SAFRA.png",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "National Service",
+      "THEME_OWNER": "MINISTRY OF DEFENCE"
+    },
+    {
+      "THEMENAME": "Quit Centres",
+      "QUERYNAME": "quitcentres",
+      "ICON": "quitcentres.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH PROMOTION BOARD"
+    },
+    {
+      "THEMENAME": "Infocomm Accessibility",
+      "QUERYNAME": "infocommaccess",
+      "ICON": "ico_mouse.gif",
+      "EXPIRY_DATE": "31/12/2022",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "INFOCOMM MEDIA DEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Liquor Control Zone(s) proclaimed under Liquor Control (Supply and Consumption) Act 2015",
+      "QUERYNAME": "liquor_control_zones",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/03/2030",
+      "PUBLISHED_DATE": "01/04/2015",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Under-Construction Parks",
+      "QUERYNAME": "nparks_uc_parks",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "WaterSupplyConstruction",
+      "QUERYNAME": "watersupplyconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "PUBLIC UTILITIES BOARD"
+    },
+    {
+      "THEMENAME": "HDB Cycling Paths Under-Construction",
+      "QUERYNAME": "hdbcyclingunderconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "SewerageConstruction",
+      "QUERYNAME": "sewerageconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "PUBLIC UTILITIES BOARD"
+    },
+    {
+      "THEMENAME": "Private Education Institution Location",
+      "QUERYNAME": "pei_location",
+      "ICON": "PEI_Icon.jpg",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "31/12/2025",
+      "CATEGORY": "Education",
+      "THEME_OWNER": "SKILLSFUTURE SINGAPORE"
+    },
+    {
+      "THEMENAME": "Under-Construction Park Connectors",
+      "QUERYNAME": "nparks_uc_pc",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Under-Construction Park Facilities",
+      "QUERYNAME": "underconstruction_facilities",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Delivery waiting bay",
+      "QUERYNAME": "deliverywaitingbay_svy",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "URBAN REDEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Certificate Grading Info of Licensed Eating Establishments",
+      "QUERYNAME": "track_record_ils_feb18",
+      "ICON": "icon.png",
+      "EXPIRY_DATE": "31/12/2023",
+      "PUBLISHED_DATE": "11/04/2018",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "SINGAPORE FOOD AGENCY"
+    },
+    {
+      "THEMENAME": "Delivery waiting bay (motorcycles)",
+      "QUERYNAME": "deliverywaitingbay_motorcycle",
+      "ICON": "Delivery_Motor.png",
+      "EXPIRY_DATE": "31/12/2030",
+      "PUBLISHED_DATE": "28/10/2025",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "URBAN REDEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Student Care Services",
+      "QUERYNAME": "studentcare",
+      "ICON": "onemap-fc-studentcare.png",
+      "EXPIRY_DATE": "31/07/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Family",
+      "THEME_OWNER": "MINISTRY OF SOCIAL AND FAMILY DEVELOPMENT"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2024 Special Event Area",
+      "QUERYNAME": "ndp_24_sea",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Historic Sites",
+      "QUERYNAME": "historicsites",
+      "ICON": "onemapicon.gif",
+      "EXPIRY_DATE": "31/12/2029",
+      "PUBLISHED_DATE": "07/05/2013",
+      "CATEGORY": "Culture",
+      "THEME_OWNER": "NATIONAL HERITAGE BOARD"
+    },
+    {
+      "THEMENAME": "Green Mark Buildings",
+      "QUERYNAME": "greenbuilding",
+      "ICON": "gml_j20.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "BUILDING AND CONSTRUCTION AUTHORITY"
+    },
+    {
+      "THEMENAME": "E-waste Recycling",
+      "QUERYNAME": "ewaste",
+      "ICON": "ewaste.jpg",
+      "EXPIRY_DATE": "31/12/2025",
+      "PUBLISHED_DATE": "16/05/2014",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Fire Stations",
+      "QUERYNAME": "firestation",
+      "ICON": "FS.PNG",
+      "EXPIRY_DATE": "31/03/2025",
+      "PUBLISHED_DATE": "11/07/2013",
+      "CATEGORY": "Emergency Preparedness",
+      "THEME_OWNER": "SINGAPORE CIVIL DEFENCE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Mobile Speed Cameras",
+      "QUERYNAME": "spf_msc",
+      "ICON": "SpeedCam_logo.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "05/12/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Police Speed Laser Cameras",
+      "QUERYNAME": "spf_pslc",
+      "ICON": "SpeedCam_logo.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "05/12/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Tourist Attractions",
+      "QUERYNAME": "tourism",
+      "ICON": "tourist_spot.gif",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "SINGAPORE TOURISM BOARD"
+    },
+    {
+      "THEMENAME": "Licensed Premises for Zero GST Goods",
+      "QUERYNAME": "customs_zero_gst_goods",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE CUSTOMS"
+    },
+    {
+      "THEMENAME": "LTA Rail Project Under Construction (Unclassified)",
+      "QUERYNAME": "ltarailprj_uc_unclass",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "LAND TRANSPORT AUTHORITY"
+    },
+    {
+      "THEMENAME": "NParks Car Park Lots",
+      "QUERYNAME": "nparks_carpark_lots",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Fitness and Conditioning Centres (FCC)",
+      "QUERYNAME": "hsgb_fcc",
+      "ICON": "HSGB_FCC.png",
+      "EXPIRY_DATE": "31/12/2017",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "National Service",
+      "THEME_OWNER": "MINISTRY OF DEFENCE"
+    },
+    {
+      "THEMENAME": "Dementia Friendly Go-To-Points (GTPs)",
+      "QUERYNAME": "dfc_gtp",
+      "ICON": "Go To Point Logo 19x18.png",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "28/02/2018",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "Hawker Centres",
+      "QUERYNAME": "ssot_hawkercentres",
+      "ICON": "HC icons_Opt 8.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2025 Special Event Area",
+      "QUERYNAME": "ndp_25_sea",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2025 Special Zone",
+      "QUERYNAME": "ndp_25_sz",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Areas within a Temporary Restricted Area",
+      "QUERYNAME": "tra_poly",
+      "ICON": "image.png",
+      "EXPIRY_DATE": "17/06/2026",
+      "PUBLISHED_DATE": "18/06/2025",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "CIVIL AVIATION AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "Areas within Prohibited Areas",
+      "QUERYNAME": "prohibited_areas",
+      "ICON": "CAAS logo.png",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "20/01/2016",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "CIVIL AVIATION AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "Designated Smoking Areas",
+      "QUERYNAME": "dsa",
+      "ICON": "icon.png",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "25/07/2018",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Maxwell Chambers F&B map",
+      "QUERYNAME": "maxwell_fnb_map",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "MINISTRY OF LAW"
+    },
+    {
+      "THEMENAME": "Singapore Police Force Establishments (2018)",
+      "QUERYNAME": "spf_establishments_2018",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2022",
+      "PUBLISHED_DATE": "01/03/2018",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "PA Headquarters",
+      "QUERYNAME": "paheadquarters",
+      "ICON": "PA.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "Crematoria",
+      "QUERYNAME": "crematoria",
+      "ICON": "circle.png",
+      "EXPIRY_DATE": "31/12/2025",
+      "PUBLISHED_DATE": "20/04/2020",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Inland Ash Scattering Gardens",
+      "QUERYNAME": "ias",
+      "ICON": "circle.png",
+      "EXPIRY_DATE": "31/12/2025",
+      "PUBLISHED_DATE": "20/04/2020",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Cervical Screening Centre",
+      "QUERYNAME": "cervicalscreen",
+      "ICON": "CSS.jpg",
+      "EXPIRY_DATE": "31/12/2031",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH PROMOTION BOARD"
+    },
+    {
+      "THEMENAME": "CET Centres",
+      "QUERYNAME": "cetcentres",
+      "ICON": "WSQ.jpg",
+      "EXPIRY_DATE": "31/07/2024",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Education",
+      "THEME_OWNER": "SKILLSFUTURE SINGAPORE"
+    },
+    {
+      "THEMENAME": "Breast Screening Centre",
+      "QUERYNAME": "breastscreen",
+      "ICON": "breastscreen.jpg",
+      "EXPIRY_DATE": "31/12/2031",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH PROMOTION BOARD"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2023 Special Event Area",
+      "QUERYNAME": "ndp_23_sea",
+      "ICON": "image.jfif",
+      "EXPIRY_DATE": "31/08/2023",
+      "PUBLISHED_DATE": "06/07/2023",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force - National Day Parade (NDP) 2023 Special Zone",
+      "QUERYNAME": "ndp_23_sz",
+      "ICON": "spf_icon.jpg",
+      "EXPIRY_DATE": "31/08/2023",
+      "PUBLISHED_DATE": "07/07/2023",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Wolbachia Release Sites",
+      "QUERYNAME": "wolbachia_release_sites",
+      "ICON": "blankicon (onemap legacy).png",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "26/08/2024",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Wireless HotSpots",
+      "QUERYNAME": "wireless_hotspots",
+      "ICON": "wireless.gif",
+      "EXPIRY_DATE": "31/12/2022",
+      "PUBLISHED_DATE": "16/03/2013",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "INFOCOMM MEDIA DEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Social Service Offices",
+      "QUERYNAME": "sso",
+      "ICON": "sso_20_px_by_20_px.jpg",
+      "EXPIRY_DATE": "31/07/2026",
+      "PUBLISHED_DATE": "26/04/2013",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "MINISTRY OF SOCIAL AND FAMILY DEVELOPMENT"
+    },
+    {
+      "THEMENAME": "Silver Infocomm",
+      "QUERYNAME": "silverinfocomm",
+      "ICON": "silverInfocomm.png",
+      "EXPIRY_DATE": "31/12/2022",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "INFOCOMM MEDIA DEVELOPMENT AUTHORITY"
+    },
+    {
+      "THEMENAME": "Community Devt Councils",
+      "QUERYNAME": "cdcouncils",
+      "ICON": "PA.jpg",
+      "EXPIRY_DATE": "31/12/2027",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "PEOPLE'S ASSOCIATION"
+    },
+    {
+      "THEMENAME": "JTC Estate Name Boundary",
+      "QUERYNAME": "jtc_estate_name",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "JTC CORPORATION"
+    },
+    {
+      "THEMENAME": "JTC Temporary Occupation License",
+      "QUERYNAME": "jtc_tol",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "JTC CORPORATION"
+    },
+    {
+      "THEMENAME": "Public Access AEDs",
+      "QUERYNAME": "aed_locations",
+      "ICON": "aedlogo.png",
+      "EXPIRY_DATE": "31/12/2024",
+      "PUBLISHED_DATE": "01/10/2019",
+      "CATEGORY": "Emergency Preparedness",
+      "THEME_OWNER": "SINGAPORE CIVIL DEFENCE FORCE"
+    },
+    {
+      "THEMENAME": "HDB Neighbourhood Renewal Programme Proposed and Under-Construction (NRP)",
+      "QUERYNAME": "hdbnrpunderconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "HDB Public Housing Building Under-Construction",
+      "QUERYNAME": "hdbbuildingunderconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "Drainage Construction",
+      "QUERYNAME": "drainageconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "PUBLIC UTILITIES BOARD"
+    },
+    {
+      "THEMENAME": "HDB Lift Upgrading Programme Proposed and Under-Construction (LUP)",
+      "QUERYNAME": "hdbluppropunderconstruction",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "Estate Upgrading Programme (EUP) Works for OSP",
+      "QUERYNAME": "bca_estate_upg_prog_osp",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "BUILDING AND CONSTRUCTION AUTHORITY"
+    },
+    {
+      "THEMENAME": "NEA Offices",
+      "QUERYNAME": "neaoffices",
+      "ICON": "ecoa20.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "ABC Waters Completed",
+      "QUERYNAME": "abcwaterscompleted",
+      "ICON": "abclogo_onemap.png",
+      "EXPIRY_DATE": "31/12/2030",
+      "PUBLISHED_DATE": "22/08/2019",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "PUBLIC UTILITIES BOARD"
+    },
+    {
+      "THEMENAME": "Bomb shelters",
+      "QUERYNAME": "bombshelters",
+      "ICON": "null",
+      "EXPIRY_DATE": "31/12/2013",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "null",
+      "THEME_OWNER": "SINGAPORE CIVIL DEFENCE FORCE"
+    },
+    {
+      "THEMENAME": "Singapore Police Force NPC Boundary",
+      "QUERYNAME": "npc_boundary",
+      "ICON": "Crest_20x20.jpg",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "02/06/2014",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "SINGAPORE POLICE FORCE"
+    },
+    {
+      "THEMENAME": "Monuments",
+      "QUERYNAME": "monuments",
+      "ICON": "heritage.gif",
+      "EXPIRY_DATE": "31/12/2029",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Culture",
+      "THEME_OWNER": "NATIONAL HERITAGE BOARD"
+    },
+    {
+      "THEMENAME": "Parks",
+      "QUERYNAME": "nationalparks",
+      "ICON": "parks.gif",
+      "EXPIRY_DATE": "31/03/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Nature Reserves Gazette 2005",
+      "QUERYNAME": "nr_gaz_2005",
+      "ICON": "gazette.jpg",
+      "EXPIRY_DATE": "31/03/2026",
+      "PUBLISHED_DATE": "30/05/2018",
+      "CATEGORY": "Recreation",
+      "THEME_OWNER": "NATIONAL PARKS BOARD"
+    },
+    {
+      "THEMENAME": "Protected Area under Section 7 Air Navigation Act",
+      "QUERYNAME": "mha_uav_2015",
+      "ICON": "MHA-Logo 20-20.png",
+      "EXPIRY_DATE": "31/12/2026",
+      "PUBLISHED_DATE": "02/06/2015",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "MINISTRY OF HOME AFFAIRS"
+    },
+    {
+      "THEMENAME": "Friendly Buildings",
+      "QUERYNAME": "bfabuildings",
+      "ICON": "ARS logo20.jpg",
+      "EXPIRY_DATE": "30/11/2022",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "BUILDING AND CONSTRUCTION AUTHORITY"
+    },
+    {
+      "THEMENAME": "No Smoking Zones",
+      "QUERYNAME": "nsz",
+      "ICON": "icon.png",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "25/07/2018",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "MOH JTVC",
+      "QUERYNAME": "testingops",
+      "ICON": "Icon 7.png",
+      "EXPIRY_DATE": "31/12/2024",
+      "PUBLISHED_DATE": "26/12/2023",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "Locations of Money Changer",
+      "QUERYNAME": "moneychanger",
+      "ICON": "onemap_MoneyExchange_20.png",
+      "EXPIRY_DATE": "31/12/2029",
+      "PUBLISHED_DATE": "12/10/2015",
+      "CATEGORY": "Community",
+      "THEME_OWNER": "MONETARY AUTHORITY OF SINGAPORE"
+    },
+    {
+      "THEMENAME": "Funeral Parlours",
+      "QUERYNAME": "funeralparlours",
+      "ICON": "circle.png",
+      "EXPIRY_DATE": "31/12/2028",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    },
+    {
+      "THEMENAME": "Eldercare Services",
+      "QUERYNAME": "eldercare",
+      "ICON": "onemap-fc-eldercare.png",
+      "EXPIRY_DATE": "31/12/2020",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Family",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "HDB Branches",
+      "QUERYNAME": "hdb_branches",
+      "ICON": "M0906.png",
+      "EXPIRY_DATE": "31/12/2029",
+      "PUBLISHED_DATE": "14/05/2013",
+      "CATEGORY": "Government Offices",
+      "THEME_OWNER": "HOUSING AND DEVELOPMENT BOARD"
+    },
+    {
+      "THEMENAME": "Healthier Eateries",
+      "QUERYNAME": "healthierdining",
+      "ICON": "HealthierDining.PNG",
+      "EXPIRY_DATE": "31/01/2026",
+      "PUBLISHED_DATE": "02/04/2015",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "HEALTH PROMOTION BOARD"
+    },
+    {
+      "THEMENAME": "Family Services",
+      "QUERYNAME": "family",
+      "ICON": "onemap-fc-family.png",
+      "EXPIRY_DATE": "31/07/2026",
+      "PUBLISHED_DATE": "01/01/2012",
+      "CATEGORY": "Family",
+      "THEME_OWNER": "MINISTRY OF SOCIAL AND FAMILY DEVELOPMENT"
+    },
+    {
+      "THEMENAME": "Vaccination_ JTVC",
+      "QUERYNAME": "votg_jtvcs",
+      "ICON": "MOH Logo 2.png",
+      "EXPIRY_DATE": "14/01/2025",
+      "PUBLISHED_DATE": "15/01/2024",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "Vaccination_PHPC",
+      "QUERYNAME": "votg_phpc",
+      "ICON": "MOH Logo 2.png",
+      "EXPIRY_DATE": "01/02/2029",
+      "PUBLISHED_DATE": "01/02/2024",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "Vaccination_Polyclinics",
+      "QUERYNAME": "vaccination_polyclinics",
+      "ICON": "MOH Logo 2.png",
+      "EXPIRY_DATE": "27/01/2029",
+      "PUBLISHED_DATE": "26/01/2024",
+      "CATEGORY": "Health",
+      "THEME_OWNER": "MINISTRY OF HEALTH"
+    },
+    {
+      "THEMENAME": "Dedicated Columbaria",
+      "QUERYNAME": "columbaria",
+      "ICON": "circle.png",
+      "EXPIRY_DATE": "31/12/2025",
+      "PUBLISHED_DATE": "20/04/2020",
+      "CATEGORY": "Environment",
+      "THEME_OWNER": "NATIONAL ENVIRONMENT AGENCY"
+    }
+  ]
+}

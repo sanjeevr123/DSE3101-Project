@@ -20,11 +20,45 @@
 #   # MEMBER 5: replace with real backend call
 # ============================================================================
 
+
+import logging
+logging.basicConfig(level=logging.DEBUG, force=True)
+logger = logging.getLogger("amenity_debug")
+logger.setLevel(logging.DEBUG)
+logger.debug("[Startup] amenity_debug logger is active.")
+
+# Utility: Print all OneMap themes related to healthcare for QUERYNAME discovery
+def print_healthcare_themes(onemap_token):
+    """
+    Prints all OneMap themes whose name or description contains 'health', 'hospital', or 'clinic'.
+    Pass your OneMap API token as the argument.
+    """
+    url = "https://www.onemap.gov.sg/api/common/thematic/getAllThemesInfo"
+    headers = {"Authorization": f"Bearer {onemap_token}"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        print("\n[OneMap] Healthcare-related themes:")
+        for theme in data.get("THEMES", []):
+            name = theme.get("THEMENAME", "")
+            desc = theme.get("DESCRIPTION", "")
+            queryname = theme.get("QUERYNAME", "")
+            if any(x in (name+desc).lower() for x in ["health", "hospital", "clinic"]):
+                print(f"  - Name: {name}\n    Description: {desc}\n    QUERYNAME: {queryname}\n")
+        print("[Done] Use the QUERYNAME(s) above in your amenity fetch logic.")
+    except Exception as e:
+        print(f"[Error] Could not fetch OneMap themes: {e}")
+
 from dash import Dash, html, dcc, Input, Output, State
 import dash
 import requests
 from urllib.parse import urlencode
 import math
+import time
+import json as json_module
+import csv
+import io
 
 # ============================================================================
 # CONFIG — MEMBER 5: update backend URL when backend team is ready
@@ -32,6 +66,43 @@ import math
 BACKEND_URL = "http://127.0.0.1:8000"
 TIMEOUT_SEC = 6
 ONEMAP_SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
+ONEMAP_REVERSE_GEOCODE_URL = "https://www.onemap.gov.sg/api/public/revgeocode"
+ONEMAP_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjEyMCwiZm9yZXZlciI6ZmFsc2UsImlzcyI6Ik9uZU1hcCIsImlhdCI6MTc3NDE3OTM5MSwibmJmIjoxNzc0MTc5MzkxLCJleHAiOjE3NzQ0Mzg1OTEsImp0aSI6ImRjNTE4MTU4LTVlN2UtNDZmZC05YWZmLTU0MWQxNWUwNTJjZSJ9.DB4YwPcdb7-icP5FXzx7Q5nL2H1YO6h5ladvnrYeVi46OCGI6eRkc2DcM5YjqPrYoYnrZ0RY_KOAzKj1fe-dhjj0CM_rFBFB2nouxs2hSf0Qx45WtWu8DnDFsGsY6LHemziKtyDTfvbNQGHPh2fX5JOanRlNP2-U_KfAMxtD9NWx9PrtOufRwgHXxxMWxwP0eQeBBw3-yRNy6o-EfcE2UV0tMgVtyC2kJHWKMrvzLprmoj8lj2xT5ETd52X2WLawZyX5mpHixNoriydaXKI6lR2Ntdsq76C_na5WGDurN29WPQ6QbmbdpPFwF0k005LU2-q3A9wW76XJGhJoAjYTag"
+DATA_GOV_API_KEY = "v2:c9ed14bd6d2d9c9667a3e7b509a11d432231159500282eca500daaa311e7a8f7:grc7IN7jf0IKQDBdSl_RM-TUvyzbIVzw"  # API key for higher rate limits
+TRANSPORT_DATASET_ID = "d_b39d3a0871985372d7e1637193335da5"
+
+# Global cache for amenity data to avoid rate limit issues
+AMENITY_CACHE_FILE = "amenity_cache.json"  # Persistent cache file
+AMENITY_CACHE = {}
+AMENITY_CACHE_TTL = 3600  # Cache for 1 hour per session
+AMENITY_CACHE_VERSION = "v4"
+REVERSE_GEOCODE_CACHE = {}
+LAST_API_REQUEST_TIME = None  # Global request timestamp
+API_REQUEST_DELAY_SEC = 1.5  # Minimal delay between API requests (reduced from 30s)
+
+# Fallback mock data for when APIs are rate limited
+FALLBACK_AMENITIES = {
+    "hawker": [
+        {"name": "Maxwell Food Centre", "address": "1 Kadayanallur St, Singapore 069184", "lat": 1.2745, "lon": 103.8447},
+        {"name": "Chinatown Complex", "address": "335 Smith St, Singapore 050335", "lat": 1.2838, "lon": 103.8426},
+        {"name": "Lau Pa Sat", "address": "18 Raffles Quay, Singapore 048582", "lat": 1.2858, "lon": 103.8510},
+    ],
+    "parks": [
+        {"name": "Bishan Park", "address": "500 Bishan St 11, Singapore 579917", "lat": 1.3521, "lon": 103.8496},
+        {"name": "Bukit Timah Nature Reserve", "address": "177 Hindhede Dr, Singapore 588994", "lat": 1.3622, "lon": 103.8176},
+        {"name": "East Coast Park", "address": "1210 East Coast Pkwy, Singapore 449855", "lat": 1.2920, "lon": 103.9544},
+    ],
+    "mrt": [
+        {"name": "Raffles Place MRT", "address": "10 Collyer Quay, Singapore 049315", "lat": 1.2865, "lon": 103.8517},
+        {"name": "Tanjong Pagar MRT", "address": "111 Tanjong Pagar Rd, Singapore 088546", "lat": 1.2762, "lon": 103.8429},
+        {"name": "Outram Park MRT", "address": "159 Outram Rd, Singapore 169040", "lat": 1.2897, "lon": 103.8358},
+    ],
+    "transport": [
+        {"name": "Raffles Place MRT", "address": "10 Collyer Quay, Singapore 049315", "lat": 1.2865, "lon": 103.8517},
+        {"name": "Tanjong Pagar MRT", "address": "111 Tanjong Pagar Rd, Singapore 088546", "lat": 1.2762, "lon": 103.8429},
+        {"name": "Outram Park MRT", "address": "159 Outram Rd, Singapore 169040", "lat": 1.2897, "lon": 103.8358},
+    ],
+}
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
@@ -259,6 +330,519 @@ def onemap_search(query):
         return None
 
 
+def get_nearby_amenity_location(name, town_or_postal):
+    """
+    Find a real amenity coordinate via OneMap, falling back safely.
+    """
+    if not name:
+        return None
+    candidates = [
+        f"{name} {town_or_postal} Singapore", 
+        f"{name} {town_or_postal}",
+        f"{name} Singapore",
+        name,
+    ]
+    for query in candidates:
+        geo = onemap_search(query)
+        if geo:
+            return geo
+    return None
+
+
+def onemap_reverse_geocode(lat, lon, buffer=200):
+    """
+    Resolve nearest address from coordinates using OneMap reverse geocoding.
+    Returns formatted address string or None.
+    """
+    cache_key = f"{float(lat):.5f}_{float(lon):.5f}_{int(buffer)}"
+    if cache_key in REVERSE_GEOCODE_CACHE:
+        return REVERSE_GEOCODE_CACHE[cache_key]
+
+    try:
+        params = {
+            "location": f"{float(lat)},{float(lon)}",
+            "buffer": int(buffer),
+            "addressType": "All"
+        }
+        headers = {"Authorization": ONEMAP_TOKEN}
+        r = requests.get(ONEMAP_REVERSE_GEOCODE_URL, params=params, headers=headers, timeout=TIMEOUT_SEC)
+        r.raise_for_status()
+        info = (r.json().get("GeocodeInfo") or [])
+        if not info:
+            REVERSE_GEOCODE_CACHE[cache_key] = None
+            return None
+
+        top = info[0]
+        block = (top.get("BLOCK") or "").strip()
+        road = (top.get("ROAD") or "").strip()
+        building = (top.get("BUILDINGNAME") or "").strip()
+        postal = (top.get("POSTALCODE") or "").strip()
+
+        parts = []
+        if block and block != "NIL":
+            if road and road != "NIL":
+                parts.append(f"{block} {road}")
+            else:
+                parts.append(block)
+        elif road and road != "NIL":
+            parts.append(road)
+
+        if building and building != "NIL":
+            parts.append(building)
+
+        if postal and postal != "NIL":
+            if postal.isdigit() and len(postal) == 6:
+                parts.append(f"Singapore {postal}")
+            else:
+                parts.append(postal)
+
+        address = ", ".join(parts) if parts else None
+        REVERSE_GEOCODE_CACHE[cache_key] = address
+        return address
+    except Exception:
+        REVERSE_GEOCODE_CACHE[cache_key] = None
+        return None
+
+
+def get_amenities_from_datagov(amenity_type, lat, lon, radius_km=3, limit=3):
+    """
+    Fetch real amenities from data.gov.sg API with aggressive rate limiting.
+    
+    Falls back to mock data if APIs are consistently rate limited.
+    
+    Args:
+        amenity_type: 'healthcare', 'hawker', 'parks', or 'mrt'
+        lat, lon: center coordinates
+        radius_km: search radius in kilometers
+        limit: max number of amenities to return
+    
+    Returns:
+        List of dicts with: {lat, lon, name, address}
+    """
+    global LAST_API_REQUEST_TIME
+    
+    # Check cache first
+    cache_key = f"{AMENITY_CACHE_VERSION}_{amenity_type}_{float(lat):.3f}_{float(lon):.3f}"
+    if cache_key in AMENITY_CACHE:
+        cache_entry = AMENITY_CACHE[cache_key]
+        if time.time() - cache_entry["timestamp"] < AMENITY_CACHE_TTL:
+            return cache_entry["data"]
+        else:
+            del AMENITY_CACHE[cache_key]
+    
+    # Global throttling: wait between API calls to avoid rate limits
+    if LAST_API_REQUEST_TIME is not None:
+        elapsed = time.time() - LAST_API_REQUEST_TIME
+        if elapsed < API_REQUEST_DELAY_SEC:
+            wait_time = API_REQUEST_DELAY_SEC - elapsed
+            print(f"Throttling {amenity_type}: waiting {wait_time:.1f}s...")
+            time.sleep(wait_time)
+    
+    # Try real API
+    api_configs = {
+        "hawker": {"format": "poll_download", "dataset_id": "d_4a086da0a5553be1d89383cd90d07ecd"},
+        "parks": {"format": "poll_download", "dataset_id": "d_0542d48f0991541706b58059381a6eca"},
+        "mrt": {"format": "metadata", "collection_id": 367},
+        "transport": {"format": "poll_download", "dataset_id": TRANSPORT_DATASET_ID},
+    }
+
+    # Special handling for healthcare: fetch both polyclinics and hospitals from OneMap
+    if amenity_type == "healthcare":
+        try:
+            results = _fetch_onemap_healthcare(lat, lon, radius_km, limit)
+            AMENITY_CACHE[cache_key] = {
+                "data": results,
+                "timestamp": time.time()
+            }
+            return results
+        except Exception as e:
+            print(f"API error for healthcare: {e}. Using fallback mock data.")
+            mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
+            AMENITY_CACHE[cache_key] = {
+                "data": mock_results,
+                "timestamp": time.time()
+            }
+            return mock_results
+
+    config = api_configs.get(amenity_type)
+    if not config:
+        return []
+
+    # Use real API for hawker centres, parks, and transport
+    if amenity_type in ("hawker", "parks", "transport"):
+        try:
+            records = _fetch_amenity_records(config, amenity_type)
+            results = _filter_amenities_by_distance(records, lat, lon, radius_km, limit, amenity_type=amenity_type)
+            # Cache API results
+            AMENITY_CACHE[cache_key] = {
+                "data": results,
+                "timestamp": time.time()
+            }
+            return results
+        except Exception as e:
+            print(f"API error for {amenity_type}: {e}. Using fallback mock data.")
+            mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
+            AMENITY_CACHE[cache_key] = {
+                "data": mock_results,
+                "timestamp": time.time()
+            }
+            return mock_results
+    else:
+        # For other amenity types, keep fallback
+        print(f"Using fallback mock data for {amenity_type}")
+        mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
+        AMENITY_CACHE[cache_key] = {
+            "data": mock_results,
+            "timestamp": time.time()
+        }
+        return mock_results
+
+def _fetch_onemap_healthcare(lat, lon, radius_km=3, limit=3):
+    """
+    Fetch both polyclinics and hospitals from OneMap, merge, filter by distance, and return sorted by distance.
+    """
+    import requests, logging
+    logger = logging.getLogger("amenity_debug")
+    logger.debug(f"[OneMap] Entered _fetch_onemap_healthcare with lat={lat}, lon={lon}, radius_km={radius_km}, limit={limit}")
+    themes = ["moh_hospitals", "vaccination_polyclinics"]
+    results = []
+    for theme in themes:
+        url = f"https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName={theme}"
+        headers = {"Authorization": ONEMAP_TOKEN}
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            logger.debug(f"[OneMap] {theme} API returned {len(data.get('SrchResults', []))} results")
+            for idx, item in enumerate(data.get("SrchResults", [])):
+                coords = item.get("LatLng")
+                logger.debug(f"[OneMap] {theme} result {idx}: NAME={item.get('NAME')}, LatLng={coords}")
+                if coords:
+                    try:
+                        # LatLng is returned as "lat,lon" string, not a list
+                        parts = str(coords).split(",")
+                        if len(parts) == 2:
+                            lat_ = float(parts[0].strip())
+                            lon_ = float(parts[1].strip())
+                            logger.debug(f"[OneMap] Parsed coords: lat={lat_}, lon={lon_}")
+                            dist = haversine_km(lat, lon, lat_, lon_)
+                            logger.debug(f"[OneMap] Distance to ({lat_}, {lon_}): {dist}")
+                            if dist is not None and dist <= radius_km:
+                                logger.debug(f"[OneMap] {theme} result {idx} within {radius_km}km: {item.get('NAME')}")
+                                name = item.get("NAME") or item.get("Theme_Name") or ""
+                                block = (item.get("ADDRESSBLOCKHOUSENUMBER") or "").strip()
+                                street = (item.get("ADDRESSSTREETNAME") or "").strip()
+                                building = (item.get("ADDRESSBUILDINGNAME") or "").strip()
+                                postal = (item.get("ADDRESSPOSTALCODE") or "").strip()
+                                generic_address = (item.get("ADDRESS") or "").strip()
+
+                                addr_parts = []
+                                if generic_address:
+                                    addr_parts.append(generic_address)
+
+                                if block and block != "-":
+                                    if street:
+                                        addr_parts.append(f"{block} {street}")
+                                    else:
+                                        addr_parts.append(block)
+                                elif street:
+                                    addr_parts.append(street)
+
+                                if building and building.lower() != name.lower():
+                                    addr_parts.append(building)
+
+                                if postal:
+                                    if postal.isdigit() and len(postal) == 6:
+                                        addr_parts.append(f"Singapore {postal}")
+                                    else:
+                                        addr_parts.append(postal)
+
+                                # Deduplicate while preserving order
+                                seen = set()
+                                clean_parts = []
+                                for part in addr_parts:
+                                    key = part.lower()
+                                    if key not in seen:
+                                        seen.add(key)
+                                        clean_parts.append(part)
+
+                                address = ", ".join(clean_parts)
+                                results.append({
+                                    "lat": lat_,
+                                    "lon": lon_,
+                                    "name": name,
+                                    "address": address, 
+                                    "type": theme,
+                                    "distance_km": dist
+                                })
+                    except Exception as e:
+                        logger.debug(f"[OneMap] Exception parsing coords for {theme} result {idx}: {e}")
+                        continue
+        except Exception as e:
+            logger.debug(f"[OneMap] Exception fetching {theme}: {e}")
+            continue
+    logger.debug(f"[OneMap] Total healthcare amenities within {radius_km}km: {len(results)}")
+    # Sort by distance and limit
+    results = sorted(results, key=lambda x: x["distance_km"])
+    # Remove the distance_km and type fields for output consistency
+    for r in results:
+        r.pop("distance_km", None)
+        r.pop("type", None)
+    return results[:limit]
+
+
+def _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit):
+    """
+    Use mock amenity data when APIs are rate limited.
+    Filters mock data by distance.
+    """
+    fallback_key = "mrt" if amenity_type == "transport" else amenity_type
+    fallback_data = FALLBACK_AMENITIES.get(fallback_key, [])
+    results = []
+    
+    for amenity in fallback_data:
+        dist = haversine_km(lat, lon, amenity["lat"], amenity["lon"])
+        if dist is not None and dist <= radius_km:
+            amenity_copy = amenity.copy()
+            results.append(amenity_copy)
+    
+    return results[:limit]
+
+
+def _fetch_amenity_records(config, amenity_type, max_retries=3):
+    """
+    Fetch records from data.gov.sg API with exponential backoff retry logic.
+    Retries on rate limit errors (429) with increasing delays.
+    Fails fast on other errors to allow fallback to mock data.
+    """
+    for attempt in range(max_retries):
+        try:
+            if config["format"] == "ckan_datastore":
+                url = f"https://data.gov.sg/api/action/datastore_search?resource_id={config['resource_id']}"
+                headers = {"x-api-key": DATA_GOV_API_KEY} if DATA_GOV_API_KEY else {}
+                response = requests.get(url, headers=headers, timeout=TIMEOUT_SEC)
+                response.raise_for_status()
+                try:
+                    data = response.json()
+                    if data.get("success"):
+                        records = data.get("result", {}).get("records", [])
+                        if records:
+                            print(f"DEBUG: Healthcare JSON records found: {len(records)}")
+                            return records
+                except Exception as e:
+                    print(f"DEBUG: Healthcare JSON parse failed: {e}")
+                # If not JSON or no records, try CSV fallback
+                print("DEBUG: Trying CSV fallback for healthcare dataset...")
+                response = requests.get(url.replace("datastore_search", "datastore_search?format=csv"), headers=headers, timeout=TIMEOUT_SEC)
+                response.raise_for_status()
+                csv_data = csv.DictReader(io.StringIO(response.text))
+                records = list(csv_data)
+                print(f"DEBUG: Healthcare CSV records found: {len(records)}")
+                return records
+            
+            elif config["format"] == "metadata":
+                url = f"https://api-production.data.gov.sg/v2/public/api/collections/{config['collection_id']}/metadata"
+                response = requests.get(url, timeout=TIMEOUT_SEC)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("records", [])
+            
+            elif config["format"] == "poll_download":
+                url = f"https://api-open.data.gov.sg/v1/public/api/datasets/{config['dataset_id']}/poll-download"
+                headers = {"x-api-key": DATA_GOV_API_KEY} if DATA_GOV_API_KEY else {}
+                response = requests.get(url, headers=headers, timeout=TIMEOUT_SEC)
+                response.raise_for_status()
+                json_data = response.json()
+                
+                if json_data.get("code") != 0:
+                    print(f"API error for {amenity_type}: {json_data.get('errMsg')}")
+                    return []
+                
+                data_url = json_data.get("data", {}).get("url")
+                if not data_url:
+                    return []
+                
+                response = requests.get(data_url, headers=headers, timeout=TIMEOUT_SEC)
+                response.raise_for_status()
+                try:
+                    # Try GeoJSON
+                    geojson = json_module.loads(response.text)
+                    if isinstance(geojson, dict) and "features" in geojson:
+                        return geojson  # Return full GeoJSON dict
+                    # Otherwise, try records
+                    if isinstance(geojson, dict):
+                        return geojson.get("records", [])
+                    return geojson
+                except Exception:
+                    csv_data = csv.DictReader(io.StringIO(response.text))
+                    return list(csv_data)
+            
+            return []
+        
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                # Rate limited — implement exponential backoff
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s...
+                    print(f"Rate limited for {amenity_type}, attempt {attempt+1}/{max_retries}. Waiting {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Final attempt failed, raise to trigger fallback
+                    raise
+            else:
+                # Other HTTP errors — don't retry
+                raise
+        except Exception as e:
+            # Network or parsing errors — don't retry
+            raise
+    
+    return []
+
+
+def _filter_amenities_by_distance(records, lat, lon, radius_km, limit, amenity_type=None):
+    """
+    Filter and extract amenity data from records by distance.
+    """
+    results = []
+    logger = logging.getLogger("amenity_debug")
+    # Handle GeoJSON features for hawker centres
+    if isinstance(records, dict) and "features" in records:
+        features = records["features"]
+        logger.debug(f"[AmenityDebug] GeoJSON features found: {len(features)}")
+        for i, feature in enumerate(features):
+            try:
+                coords = feature.get("geometry", {}).get("coordinates", [])
+                if len(coords) == 2:
+                    rec_lon, rec_lat = coords[0], coords[1]
+                    props = feature.get("properties", {})
+                    default_label = {
+                        "hawker": "Hawker Centre",
+                        "transport": "Transport Point",
+                        "parks": "Park",
+                    }.get(amenity_type, "Amenity")
+
+                    transport_station = (props.get("STATION_NA") or "").strip()
+                    transport_exit = (props.get("EXIT_CODE") or "").strip()
+                    transport_name = ""
+                    if amenity_type == "transport" and transport_station:
+                        transport_name = f"{transport_station} ({transport_exit})" if transport_exit else transport_station
+
+                    name_candidates = [
+                        transport_name,
+                        props.get("NAME"),
+                        props.get("Name"),
+                        props.get("name"),
+                        props.get("TITLE"),
+                        props.get("Title"),
+                        props.get("facility_name"),
+                        props.get("ADDRESSBUILDINGNAME"),
+                        props.get("DESCRIPTION"),
+                    ]
+                    name = next((str(v).strip() for v in name_candidates if v and str(v).strip()), f"Unnamed {default_label}")
+                    address = props.get("ADDRESS_MYENV")
+                    if not address:
+                        block = props.get("ADDRESSBLOCKHOUSENUMBER", "")
+                        street = props.get("ADDRESSSTREETNAME", "")
+                        postal = props.get("ADDRESSPOSTALCODE", "")
+                        addr_parts = []
+                        if block and str(block).strip() and str(block).strip() != "-":
+                            addr_parts.append(str(block).strip())
+                        if street and str(street).strip():
+                            addr_parts.append(str(street).strip())
+                        if postal and str(postal).strip():
+                            postal_text = str(postal).strip()
+                            if postal_text.isdigit() and len(postal_text) == 6:
+                                addr_parts.append(f"Singapore {postal_text}")
+                            else:
+                                addr_parts.append(postal_text)
+                        address = ", ".join(addr_parts)
+                    if not address or not str(address).strip() or str(address).strip().lower() == "singapore":
+                        resolved = onemap_reverse_geocode(rec_lat, rec_lon)
+                        address = resolved or "Address not available"
+                    # Debug: print the exact values passed to haversine_km
+                    logger.debug(f"[AmenityDebug] Feature {i}: Calling haversine_km(lat={lat}, lon={lon}, rec_lat={rec_lat}, rec_lon={rec_lon})")
+                    logger.debug(f"[AmenityDebug] Types: lat={type(lat)}, lon={type(lon)}, rec_lat={type(rec_lat)}, rec_lon={type(rec_lon)}")
+                    try:
+                        dist = haversine_km(lat, lon, rec_lat, rec_lon)
+                        logger.debug(f"[AmenityDebug] Feature {i}: haversine_km result: {dist}")
+                    except Exception as e:
+                        logger.debug(f"[AmenityDebug] Feature {i}: Exception in haversine_km: {e}")
+                        dist = None
+                    if i < 5:
+                        if dist is not None:
+                            logger.debug(f"[AmenityDebug] Feature {i}: name={name}, coords=({rec_lat}, {rec_lon}), dist={dist:.3f} km")
+                        else:
+                            logger.debug(f"[AmenityDebug] Feature {i}: name={name}, coords=({rec_lat}, {rec_lon}), dist=None (lat/lon={lat},{lon})")
+                    if dist is not None and dist <= radius_km:
+                        if amenity_type == "parks" and (not address or address.strip().lower() == "singapore"):
+                            resolved = onemap_reverse_geocode(rec_lat, rec_lon)
+                            address = resolved or "Address not available"
+                        results.append({
+                            "lat": rec_lat,
+                            "lon": rec_lon,
+                            "name": name,
+                            "address": address
+                        })
+            except Exception as e:
+                logger.debug(f"[AmenityDebug] Exception parsing feature {i}: {e}, coords={feature.get('geometry', {}).get('coordinates', [])}")
+                continue
+        logger.debug(f"[AmenityDebug] Amenities within {radius_km}km: {len(results)} (limit {limit})")
+        return results[:limit]
+    # Fallback to original record parsing
+        for record in records:
+                try:
+                        rec_lat = None
+                        rec_lon = None
+                        for lat_field in ["latitude", "Latitude", "lat", "Lat", "LATITUDE", "lat_long"]:
+                                if lat_field in record:
+                                        val = record[lat_field]
+                                        if val:
+                                                rec_lat = float(val)
+                                                break
+                        for lon_field in ["longitude", "Longitude", "lon", "Lon", "LONGITUDE", "Long"]:
+                                if lon_field in record:
+                                        val = record[lon_field]
+                                        if val:
+                                                rec_lon = float(val)
+                                                break
+                        if rec_lat is None or rec_lon is None or (rec_lat == 0 and rec_lon == 0):
+                                name = None
+                                for name_field in ["name", "Name", "NAME", "facility_name", "title", "Title", "place_name", "Place"]:
+                                        if name_field in record and record[name_field]:
+                                                name = record[name_field]
+                                                break
+                                if name:
+                                        geo = get_nearby_amenity_location(name, "Singapore")
+                                        if geo:
+                                                rec_lat = geo["lat"]
+                                                rec_lon = geo["lon"]
+                        if rec_lat is None or rec_lon is None or (rec_lat == 0 and rec_lon == 0):
+                                continue
+                        dist = haversine_km(lat, lon, rec_lat, rec_lon)
+                        if dist <= radius_km:
+                                name = None
+                                for name_field in ["name", "Name", "NAME", "facility_name", "Facility Name", "Facility"]:
+                                        if name_field in record:
+                                                name = record[name_field]
+                                                break
+                                address = None
+                                for addr_field in ["address", "Address", "ADDRESS", "location", "Location", "Address Block"]:
+                                        if addr_field in record:
+                                                address = record[addr_field]
+                                                break
+                                results.append({
+                                        "lat": rec_lat,
+                                        "lon": rec_lon,
+                                        "name": name or "Unnamed Facility",
+                                        "address": address or ""
+                                })
+                except (ValueError, TypeError, KeyError):
+                        continue
+        return results[:limit]
+    return results[:limit]
+
+
 # ============================================================================
 # MOCK BACKEND — MEMBER 5: replace bodies with real API when ready
 # ============================================================================
@@ -315,14 +899,14 @@ def weights_from_sliders(hc, tr, hw, rec):
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Calculate the straight-line distance in km between two lat/lon points."""
-    R = 6371.0  # Radius of the Earth in km
+    R = 6371.0
+    lat1, lon1, lat2, lon2 = float(lat1), float(lon1), float(lat2), float(lon2)
     p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
-    distance = R * c  # Distance in km
-    return distance
+    return R * c
 def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     """
     Generate a complete Leaflet HTML page as a string for iframe injection.
@@ -340,11 +924,11 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
 
     def js_am(a):
         return {
-            "name": a["name"], 
+            "name": a.get("name") or "Unnamed amenity", 
             "lat": a["lat"], 
             "lon": a["lon"], 
             "kind": a.get("kind", "Amenity"),
-            "address": a.get("address", "N/A"),
+            "address": a.get("address") or "Address not available",
             "distance": a.get("distance", "N/A")
         }
 
@@ -453,13 +1037,6 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
 """
 
 
-def haversine_km(lat1, lon1, lat2, lon2):
-    """Straight-line distance in km between two coordinates."""
-    R = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
 
 
 # ============================================================================
@@ -892,7 +1469,8 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
     # Derived fields
     for r in recs:
         r["cash_unlocked"] = int(sell_pred["price"] - r["buy_price"])
-        r["dist_from_home_km"] = round(haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"]), 2)
+        dist = haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"])
+        r["dist_from_home_km"] = round(dist, 2) if dist is not None else 0.0
 
     # ── Result cards — MEMBER 8: customise everything in this block ──
     cards = []
@@ -951,97 +1529,116 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
             "lon": r["lon"], 
             "color": "#22c55e", 
             "price": r["buy_price"],
-            "distance": f"{r['dist_from_home_km']} km"  # Assuming this field is calculated
+            "distance": f"{r['dist_from_home_km']} km"
         })
 
-    # MEMBER 6: amenity markers — currently mocked offsets, replace with real coords from backend
-    clinic_names = ["ABC Medical Clinic", "HealthFirst Clinic", "CarePlus Medical Centre", "Unity Medical Clinic", "Wellness Family Clinic", "Singapore Health Clinic", "PrimeCare Clinic", "MediCare Centre", "Family Health Clinic", "Total Health Medical"]
-    hawker_names = ["Chinatown Complex Food Centre", "Newton Food Centre", "Lau Pa Sat", "Maxwell Food Centre", "Tiong Bahru Market", "Golden Mile Food Centre", "Tekka Centre", "Amoy Street Food Centre", "Bukit Timah Market", "Commonwealth Crescent Market"]
-    park_names = ["East Coast Park", "Bishan Park", "Botanic Gardens", "Marina Bay Sands Park", "Jurong Lake Gardens", "Pasir Ris Park", "Punggol Park", "Sengkang Riverside Park", "Tampines Eco Green", "Woodlands Waterfront Park"]
-    transport_names = ["Ang Mo Kio MRT Station", "Bedok MRT Station", "Clementi MRT Station", "Dover MRT Station", "Eunos MRT Station", "Farrer Park MRT Station", "Geylang Bahru MRT Station", "Hougang MRT Station", "Jurong East MRT Station", "Kallang MRT Station"]
-    
+    # Fetch real amenities from data.gov.sg — MEMBER 6: customize collection IDs
     amenities = []
     base_lat, base_lon = sell_geo["lat"], sell_geo["lon"]
     radius_km = 2.0
-    
+    hawker_debug_rows = []
     for idx, r in enumerate(recs):
         rec_lat, rec_lon = r["lat"], r["lon"]
-        
-        # Healthcare: 2 clinics per recommended flat
-        for i in range(2):
-            offset_lat = (i - 0.5) * 0.005
-            offset_lon = (i - 0.5) * 0.005
-            lat = rec_lat + offset_lat
-            lon = rec_lon + offset_lon
-            dist_from_rec = haversine_km(rec_lat, rec_lon, lat, lon)
-            if dist_from_rec <= radius_km:
-                dist_from_home = haversine_km(base_lat, base_lon, lat, lon)
-                amenities.append({
-                    "name": clinic_names[(idx * 2 + i) % len(clinic_names)], 
-                    "lat": lat, 
-                    "lon": lon, 
-                    "kind": "healthcare",
-                    "address": f"{123 + idx*10 + i} Health St, {r['town']}",
-                    "distance": f"{dist_from_home:.2f} km"
-                })
-        
-        # Hawker centres: 2 per recommended flat
-        for i in range(2):
-            offset_lat = (i % 2 - 0.5) * 0.006
-            offset_lon = ((i // 2) - 0.5) * 0.006
-            lat = rec_lat + offset_lat
-            lon = rec_lon + offset_lon
-            dist_from_rec = haversine_km(rec_lat, rec_lon, lat, lon)
-            if dist_from_rec <= radius_km:
-                dist_from_home = haversine_km(base_lat, base_lon, lat, lon)
-                amenities.append({
-                    "name": hawker_names[(idx * 2 + i) % len(hawker_names)], 
-                    "lat": lat, 
-                    "lon": lon, 
-                    "kind": "hawker centre",
-                    "address": f"{456 + idx*10 + i} Food Ave, {r['town']}",
-                    "distance": f"{dist_from_home:.2f} km"
-                })
-        
-        # Nature: 2 parks per recommended flat
-        for i in range(2):
-            offset_lat = (i - 0.5) * 0.007
-            offset_lon = (i - 0.5) * -0.007
-            lat = rec_lat + offset_lat
-            lon = rec_lon + offset_lon
-            dist_from_rec = haversine_km(rec_lat, rec_lon, lat, lon)
-            if dist_from_rec <= radius_km:
-                dist_from_home = haversine_km(base_lat, base_lon, lat, lon)
-                amenities.append({
-                    "name": park_names[(idx * 2 + i) % len(park_names)], 
-                    "lat": lat, 
-                    "lon": lon, 
-                    "kind": "nature",
-                    "address": f"{789 + idx*10 + i} Green Rd, {r['town']}",
-                    "distance": f"{dist_from_home:.2f} km"
-                })
-        
-        # Transport: 2 stations per recommended flat
-        for i in range(2):
-            offset_lat = ((i % 2) * 2 - 1) * 0.004
-            offset_lon = ((i // 2) * 2 - 1) * 0.004
-            lat = rec_lat + offset_lat
-            lon = rec_lon + offset_lon
-            dist_from_rec = haversine_km(rec_lat, rec_lon, lat, lon)
-            if dist_from_rec <= radius_km:
-                dist_from_home = haversine_km(base_lat, base_lon, lat, lon)
-                amenities.append({
-                    "name": transport_names[(idx * 2 + i) % len(transport_names)], 
-                    "lat": lat, 
-                    "lon": lon, 
-                    "kind": "transport",
-                    "address": f"{101 + idx*10 + i} Transit Blvd, {r['town']}",
-                    "distance": f"{dist_from_home:.2f} km"
-                })
+
+        # Healthcare (CHAS clinics, sorted by distance)
+        healthcare_amenities = get_amenities_from_datagov("healthcare", rec_lat, rec_lon, radius_km=2.0, limit=9999)
+        healthcare_with_dist = []
+        for amenity in healthcare_amenities:
+            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+            healthcare_with_dist.append({**amenity, "distance_km": dist})
+        healthcare_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(healthcare_with_dist)} clinics for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        for amenity in healthcare_with_dist:
+            dist_from_home = amenity["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": amenity["name"],
+                "lat": amenity["lat"],
+                "lon": amenity["lon"],
+                "kind": "healthcare",
+                "address": amenity.get("address", ""),
+                "distance": dist_str
+            })
+
+        # Hawker centres (API, fallback if needed)
+        hawker_amenities = get_amenities_from_datagov("hawker", rec_lat, rec_lon, radius_km=2.0, limit=100)
+        hawker_with_dist = []
+        for amenity in hawker_amenities:
+            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+            if dist is not None and dist <= 2.0:
+                hawker_with_dist.append({**amenity, "distance_km": dist})
+        hawker_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(hawker_with_dist)} hawker centres within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        for amenity in hawker_with_dist:
+            dist_from_home = amenity["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": amenity["name"],
+                "lat": amenity["lat"],
+                "lon": amenity["lon"],
+                "kind": "hawker centre",
+                "address": amenity.get("address", ""),
+                "distance": dist_str
+            })
+            hawker_debug_rows.append([
+                amenity["name"], amenity.get("address", ""), amenity["lat"], amenity["lon"], dist_str
+            ])
+
+        # Transport (API dataset linked by TRANSPORT_DATASET_ID)
+        transport_amenities = get_amenities_from_datagov("transport", rec_lat, rec_lon, radius_km=2.0, limit=100)
+        transport_with_dist = []
+        for amenity in transport_amenities:
+            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+            if dist is not None and dist <= 2.0:
+                transport_with_dist.append({**amenity, "distance_km": dist})
+        transport_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(transport_with_dist)} transport points within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        for amenity in transport_with_dist:
+            dist_from_home = amenity["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": amenity["name"],
+                "lat": amenity["lat"],
+                "lon": amenity["lon"],
+                "kind": "transport",
+                "address": amenity.get("address", ""),
+                "distance": dist_str
+            })
+
+        # Nature parks (API, fallback if needed)
+        park_amenities = get_amenities_from_datagov("parks", rec_lat, rec_lon, radius_km=2.0, limit=100)
+        park_with_dist = []
+        for park in park_amenities:
+            dist = haversine_km(rec_lat, rec_lon, park["lat"], park["lon"])
+            if dist is not None and dist <= 2.0:
+                park_with_dist.append({**park, "distance_km": dist})
+        park_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(park_with_dist)} parks within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        for park in park_with_dist:
+            dist_from_home = park["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": park["name"],
+                "lat": park["lat"],
+                "lon": park["lon"],
+                "kind": "nature",
+                "address": park.get("address", ""),
+                "distance": dist_str
+            })
+            hawker_debug_rows.append([
+                park["name"], park.get("address", ""), park["lat"], park["lon"], dist_str
+            ])
+
+        # NOTE: We intentionally skip healthcare/parks/mrt for now to reduce API load.
 
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
-    return html.Div(cards), map_doc, recs
+    # Display hawker centre debug table
+    hawker_table = html.Table([
+        html.Tr([html.Th("Name"), html.Th("Address"), html.Th("Lat"), html.Th("Lon"), html.Th("Distance from home")])
+    ] + [html.Tr([html.Td(x) for x in row]) for row in hawker_debug_rows], style={"marginTop": "18px", "fontSize": "16px", "background": "#f9fafb", "borderRadius": "12px", "padding": "8px"})
+
+    return html.Div([*cards, hawker_table]), map_doc, recs
 
 
 # ── Reset ──
