@@ -206,3 +206,4 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 data/raw/output.csv
+data/raw/HDB_full_resale_info.pkl.gzip
