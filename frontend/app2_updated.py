@@ -63,8 +63,6 @@ from config.settings import (
     ONEMAP_SEARCH_URL,
     ONEMAP_REVERSE_GEOCODE_URL,
     ONEMAP_TOKEN,
-    DATA_GOV_API_KEY,
-    TRANSPORT_DATASET_ID,
     AMENITY_CACHE_FILE,
     AMENITY_CACHE_TTL,
     AMENITY_CACHE_VERSION,
@@ -91,7 +89,7 @@ from services.api import (
     onemap_search,
     get_nearby_amenity_location,
     onemap_reverse_geocode,
-    get_amenities_from_datagov,
+    get_nearby_amenities,
 )
 from services.mock_backend import mock_predict_price, mock_recommendations
 from utils.helpers import build_propertyguru_url, weights_from_sliders, haversine_km
@@ -130,12 +128,12 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
             "lat": a["lat"], 
             "lon": a["lon"], 
             "kind": a.get("kind", "Amenity"),
-            "address": a.get("address") or "Address not available",
+            "address": a.get("address"),  # None for transport amenities
             "distance": a.get("distance", "N/A")
         }
 
-    points_js = [js_point(p) for p in points]
-    amen_js = [js_am(a) for a in amenities]
+    points_js = json_module.dumps([js_point(p) for p in points])
+    amen_js = json_module.dumps([js_am(a) for a in amenities])
 
     return f"""
 <!doctype html>
@@ -158,21 +156,44 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       background: rgba(255,255,255,0.92); padding: 10px 12px;
       border: 1px solid rgba(15,23,42,0.15); border-radius: 12px;
       font-family: system-ui; font-size: 14px; font-weight: 800; color: #0f172a;
+            min-width: 220px;
     }}
     .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }}
     .amenity-icon {{ font-size: 24px; background: none; border: none; }}
+        .legend-title {{ font-size: 15px; font-weight: 900; margin-bottom: 8px; }}
+        .legend-note {{ font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 8px; }}
+        .toggle-row {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }}
+        .switch {{ position: relative; display: inline-block; width: 42px; height: 24px; }}
+        .switch input {{ opacity: 0; width: 0; height: 0; }}
+        .slider {{ position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .2s; border-radius: 999px; }}
+        .slider:before {{ position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; }}
+        .switch input:checked + .slider {{ background-color: #0ea5e9; }}
+        .switch input:checked + .slider:before {{ transform: translateX(18px); }}
   </style>
 </head>
 <body>
   <div id="map"></div>
   <!-- MEMBER 6: update legend labels and dot colours -->
-  <div class="legend">
-    <span style="background-color:#0ea5e9; padding: 5px;">🏠 Your flat</span><br>
-    <span style="background-color:#22c55e; padding: 5px;">🏢 Recommended flats</span><br>
-    <span>🏥 Healthcare</span><br>
-    <span>🚇 Transport</span><br>
-    <span>🍜 Hawker Centre</span><br>
-    <span>🌳 Nature</span>
+    <div class="legend" id="layer-controls">
+        <div class="legend-title">Map Layers</div>
+        <div class="legend-note">Toggle amenities with switches</div>
+        <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat • 🏢 Recommended flats</div>
+        <div class="toggle-row">
+            <span>🏥 Healthcare</span>
+            <label class="switch"><input type="checkbox" data-kind="healthcare" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span>🚇 Transport</span>
+            <label class="switch"><input type="checkbox" data-kind="transport" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span>🍜 Hawker / Food</span>
+            <label class="switch"><input type="checkbox" data-kind="hawker / food" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span>🌳 Nature</span>
+            <label class="switch"><input type="checkbox" data-kind="nature" checked><span class="slider"></span></label>
+        </div>
   </div>
   <script>
     const center = [{center_lat}, {center_lon}];
@@ -186,6 +207,12 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
 
     const points = {points_js};
     const amenities = {amen_js};
+        const amenityLayers = {{
+            'healthcare': L.layerGroup().addTo(map),
+            'transport': L.layerGroup().addTo(map),
+            'hawker / food': L.layerGroup().addTo(map),
+            'nature': L.layerGroup().addTo(map)
+        }};
     const homeIcon = L.icon({{
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
       iconSize: [25, 41],
@@ -217,7 +244,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       switch(a.kind) {{
         case 'healthcare': iconHtml = '🏥'; break;
         case 'transport': iconHtml = '🚇'; break;
-        case 'hawker centre': iconHtml = '🍜'; break;
+        case 'hawker / food': iconHtml = '🍜'; break;
         case 'nature': iconHtml = '🌳'; break;
         default: iconHtml = '📍';
       }}
@@ -227,8 +254,27 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
         iconSize: [30, 30],
         iconAnchor: [15, 15]
       }});
-      L.marker([a.lat, a.lon], {{ icon: amenityIcon }}).addTo(map).bindPopup(`<b>${{a.name}}</b><br>Address: ${{a.address}}<br>Distance: ${{a.distance}} from your HDB`);
+            const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
+            const layer = amenityLayers[a.kind];
+            if (layer) {{
+                marker.addTo(layer);
+            }} else {{
+                marker.addTo(map);
+            }}
     }});
+
+        document.querySelectorAll('#layer-controls input[type="checkbox"]').forEach(cb => {{
+            cb.addEventListener('change', (event) => {{
+                const kind = event.target.getAttribute('data-kind');
+                const layer = amenityLayers[kind];
+                if (!layer) return;
+                if (event.target.checked) {{
+                    if (!map.hasLayer(layer)) layer.addTo(map);
+                }} else {{
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                }}
+            }});
+        }});
 
     // MEMBER 6: adjust fit-bounds padding
     const all = points.map(p => [p.lat, p.lon]).concat(amenities.map(a => [a.lat, a.lon]));
@@ -734,7 +780,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
             "distance": f"{r['dist_from_home_km']} km"
         })
 
-    # Fetch real amenities from data.gov.sg — MEMBER 6: customize collection IDs
+    # Fetch real amenities from OneMap — MEMBER 6: customize themes
     amenities = []
     base_lat, base_lon = sell_geo["lat"], sell_geo["lon"]
     radius_km = 2.0
@@ -743,7 +789,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
         rec_lat, rec_lon = r["lat"], r["lon"]
 
         # Healthcare (CHAS clinics, sorted by distance)
-        healthcare_amenities = get_amenities_from_datagov("healthcare", rec_lat, rec_lon, radius_km=2.0, limit=9999)
+        healthcare_amenities = get_nearby_amenities("healthcare", rec_lat, rec_lon, radius_km=2.0, limit=9999)
         healthcare_with_dist = []
         for amenity in healthcare_amenities:
             dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
@@ -762,15 +808,15 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
                 "distance": dist_str
             })
 
-        # Hawker centres (API, fallback if needed)
-        hawker_amenities = get_amenities_from_datagov("hawker", rec_lat, rec_lon, radius_km=2.0, limit=100)
+        # Hawker centres & food courts
+        hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=2.0, limit=100)
         hawker_with_dist = []
         for amenity in hawker_amenities:
             dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
             if dist is not None and dist <= 2.0:
                 hawker_with_dist.append({**amenity, "distance_km": dist})
         hawker_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
-        logger.info(f"DEBUG: Found {len(hawker_with_dist)} hawker centres within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        logger.info(f"DEBUG: Found {len(hawker_with_dist)} hawker/food courts within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
         for amenity in hawker_with_dist:
             dist_from_home = amenity["distance_km"]
             dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
@@ -778,7 +824,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
                 "name": amenity["name"],
                 "lat": amenity["lat"],
                 "lon": amenity["lon"],
-                "kind": "hawker centre",
+                "kind": "hawker / food",
                 "address": amenity.get("address", ""),
                 "distance": dist_str
             })
@@ -786,8 +832,8 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
                 amenity["name"], amenity.get("address", ""), amenity["lat"], amenity["lon"], dist_str
             ])
 
-        # Transport (API dataset linked by TRANSPORT_DATASET_ID)
-        transport_amenities = get_amenities_from_datagov("transport", rec_lat, rec_lon, radius_km=2.0, limit=100)
+        # Transport (MRT/LRT stations via OneMap search)
+        transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=2.0, limit=100)
         transport_with_dist = []
         for amenity in transport_amenities:
             dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
@@ -808,7 +854,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
             })
 
         # Nature parks (API, fallback if needed)
-        park_amenities = get_amenities_from_datagov("parks", rec_lat, rec_lon, radius_km=2.0, limit=100)
+        park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=2.0, limit=100)
         park_with_dist = []
         for park in park_amenities:
             dist = haversine_km(rec_lat, rec_lon, park["lat"], park["lon"])
@@ -835,7 +881,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
 
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
-    # Display hawker centre debug table
+    # Display hawker / food debug table
     hawker_table = html.Table([
         html.Tr([html.Th("Name"), html.Th("Address"), html.Th("Lat"), html.Th("Lon"), html.Th("Distance from home")])
     ] + [html.Tr([html.Td(x) for x in row]) for row in hawker_debug_rows], style={"marginTop": "18px", "fontSize": "16px", "background": "#f9fafb", "borderRadius": "12px", "padding": "8px"})

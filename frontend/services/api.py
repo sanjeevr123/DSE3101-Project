@@ -1,19 +1,19 @@
 import logging
 import requests
 import time
-import json as json_module
-import csv
-import io
 import math
+import re
+import threading
 
 from config.settings import (
     BACKEND_URL,
     TIMEOUT_SEC,
+    ONEMAP_BASE_URL,
     ONEMAP_SEARCH_URL,
     ONEMAP_REVERSE_GEOCODE_URL,
     ONEMAP_TOKEN,
-    DATA_GOV_API_KEY,
-    TRANSPORT_DATASET_ID,
+    ONEMAP_API_EMAIL,
+    ONEMAP_API_PASSWORD,
     AMENITY_CACHE_TTL,
     AMENITY_CACHE_VERSION,
     API_REQUEST_DELAY_SEC,
@@ -23,6 +23,9 @@ from config.settings import (
 AMENITY_CACHE = {}
 REVERSE_GEOCODE_CACHE = {}
 LAST_API_REQUEST_TIME = None
+_ONEMAP_AUTH_CACHE = {"token": None, "expires_at": 0}
+_ONEMAP_AUTH_LOCK = threading.Lock()
+_ONEMAP_AUTH_BACKOFF = {"retry_after": 0}
 
 
 def _haversine_km(lat1, lon1, lat2, lon2):
@@ -34,6 +37,76 @@ def _haversine_km(lat1, lon1, lat2, lon2):
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
     return R * c
+
+
+def _extract_token_expiry_epoch(token_response):
+    now_epoch = time.time()
+    for key in ("expiry_timestamp", "exp", "expires_at", "expires_on"):
+        value = token_response.get(key)
+        try:
+            if value is not None:
+                return float(value)
+        except Exception:
+            continue
+
+    for key in ("expires_in", "expiry", "expiresIn"):
+        value = token_response.get(key)
+        try:
+            if value is not None:
+                return now_epoch + float(value)
+        except Exception:
+            continue
+
+    return now_epoch + (12 * 60 * 60)
+
+
+def get_onemap_access_token(force_refresh=False):
+    now = time.time()
+
+    # Avoid hammering auth endpoint when credentials are wrong/expired.
+    if now < _ONEMAP_AUTH_BACKOFF["retry_after"]:
+        return ONEMAP_TOKEN or None
+
+    if not force_refresh and _ONEMAP_AUTH_CACHE["token"] and time.time() < _ONEMAP_AUTH_CACHE["expires_at"]:
+        return _ONEMAP_AUTH_CACHE["token"]
+
+    with _ONEMAP_AUTH_LOCK:
+        if not force_refresh and _ONEMAP_AUTH_CACHE["token"] and time.time() < _ONEMAP_AUTH_CACHE["expires_at"]:
+            return _ONEMAP_AUTH_CACHE["token"]
+
+        if ONEMAP_API_EMAIL and ONEMAP_API_PASSWORD:
+            try:
+                response = requests.post(
+                    f"{ONEMAP_BASE_URL}/api/auth/post/getToken",
+                    json={"email": ONEMAP_API_EMAIL, "password": ONEMAP_API_PASSWORD},
+                    timeout=TIMEOUT_SEC,
+                )
+                response.raise_for_status()
+                token_data = response.json() or {}
+                token = token_data.get("access_token")
+                if token:
+                    _ONEMAP_AUTH_CACHE["token"] = token
+                    _ONEMAP_AUTH_CACHE["expires_at"] = _extract_token_expiry_epoch(token_data) - 60
+                    _ONEMAP_AUTH_BACKOFF["retry_after"] = 0
+                    return token
+            except Exception as e:
+                _ONEMAP_AUTH_BACKOFF["retry_after"] = time.time() + 300
+                logging.getLogger("amenity_debug").warning(f"Failed to refresh OneMap token: {e}")
+
+        if ONEMAP_TOKEN:
+            return ONEMAP_TOKEN
+
+        return None
+
+
+def _get_onemap_auth_headers():
+    token = get_onemap_access_token()
+    if not token:
+        return {}
+    token_value = str(token).strip()
+    if not token_value.lower().startswith("bearer "):
+        token_value = f"Bearer {token_value}"
+    return {"Authorization": token_value}
 
 
 def safe_post(path, payload):
@@ -91,7 +164,7 @@ def onemap_reverse_geocode(lat, lon, buffer=200):
             "buffer": int(buffer),
             "addressType": "All"
         }
-        headers = {"Authorization": ONEMAP_TOKEN}
+        headers = _get_onemap_auth_headers()
         r = requests.get(ONEMAP_REVERSE_GEOCODE_URL, params=params, headers=headers, timeout=TIMEOUT_SEC)
         r.raise_for_status()
         info = (r.json().get("GeocodeInfo") or [])
@@ -131,7 +204,7 @@ def onemap_reverse_geocode(lat, lon, buffer=200):
         return None
 
 
-def get_amenities_from_datagov(amenity_type, lat, lon, radius_km=3, limit=3):
+def get_nearby_amenities(amenity_type, lat, lon, radius_km=3, limit=3):
     global LAST_API_REQUEST_TIME
 
     cache_key = f"{AMENITY_CACHE_VERSION}_{amenity_type}_{float(lat):.3f}_{float(lon):.3f}"
@@ -149,38 +222,23 @@ def get_amenities_from_datagov(amenity_type, lat, lon, radius_km=3, limit=3):
             print(f"Throttling {amenity_type}: waiting {wait_time:.1f}s...")
             time.sleep(wait_time)
 
-    api_configs = {
-        "hawker": {"format": "poll_download", "dataset_id": "d_4a086da0a5553be1d89383cd90d07ecd"},
-        "parks": {"format": "poll_download", "dataset_id": "d_0542d48f0991541706b58059381a6eca"},
-        "mrt": {"format": "metadata", "collection_id": 367},
-        "transport": {"format": "poll_download", "dataset_id": TRANSPORT_DATASET_ID},
+    # ── OneMap theme-based amenity types ──
+    onemap_theme_map = {
+        "healthcare": ["moh_hospitals", "vaccination_polyclinics"],
+        "hawker": ["ssot_hawkercentres"],
+        "parks": ["nationalparks"],
     }
 
-    if amenity_type == "healthcare":
+    if amenity_type in onemap_theme_map:
         try:
-            results = _fetch_onemap_healthcare(lat, lon, radius_km, limit)
-            AMENITY_CACHE[cache_key] = {
-                "data": results,
-                "timestamp": time.time()
-            }
-            return results
-        except Exception as e:
-            print(f"API error for healthcare: {e}. Using fallback mock data.")
-            mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
-            AMENITY_CACHE[cache_key] = {
-                "data": mock_results,
-                "timestamp": time.time()
-            }
-            return mock_results
-
-    config = api_configs.get(amenity_type)
-    if not config:
-        return []
-
-    if amenity_type in ("hawker", "parks", "transport"):
-        try:
-            records = _fetch_amenity_records(config, amenity_type)
-            results = _filter_amenities_by_distance(records, lat, lon, radius_km, limit, amenity_type=amenity_type)
+            results = _fetch_onemap_theme_amenities(
+                onemap_theme_map[amenity_type], lat, lon, radius_km, limit
+            )
+            if not results:
+                logging.getLogger("amenity_debug").debug(
+                    f"[OneMap] {amenity_type} API returned no records within {radius_km}km; using fallback."
+                )
+                results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
             AMENITY_CACHE[cache_key] = {
                 "data": results,
                 "timestamp": time.time()
@@ -194,100 +252,249 @@ def get_amenities_from_datagov(amenity_type, lat, lon, radius_km=3, limit=3):
                 "timestamp": time.time()
             }
             return mock_results
-    else:
-        print(f"Using fallback mock data for {amenity_type}")
-        mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
-        AMENITY_CACHE[cache_key] = {
-            "data": mock_results,
-            "timestamp": time.time()
-        }
-        return mock_results
+
+    if amenity_type in ("transport",):
+        try:
+            results = _fetch_onemap_transport(lat, lon, radius_km, limit)
+            if not results:
+                results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
+            AMENITY_CACHE[cache_key] = {
+                "data": results,
+                "timestamp": time.time()
+            }
+            return results
+        except Exception as e:
+            print(f"API error for transport: {e}. Using fallback mock data.")
+            mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
+            AMENITY_CACHE[cache_key] = {
+                "data": mock_results,
+                "timestamp": time.time()
+            }
+            return mock_results
+
+    print(f"Using fallback mock data for {amenity_type}")
+    mock_results = _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit)
+    AMENITY_CACHE[cache_key] = {
+        "data": mock_results,
+        "timestamp": time.time()
+    }
+    return mock_results
 
 
-def _fetch_onemap_healthcare(lat, lon, radius_km=3, limit=3):
+def _fetch_onemap_theme_amenities(theme_names, lat, lon, radius_km=3, limit=3):
+    """Generic fetcher for OneMap theme-based amenities (healthcare, hawker, parks)."""
     logger = logging.getLogger("amenity_debug")
-    logger.debug(f"[OneMap] Entered _fetch_onemap_healthcare with lat={lat}, lon={lon}, radius_km={radius_km}, limit={limit}")
-    themes = ["moh_hospitals", "vaccination_polyclinics"]
+    logger.debug(f"[OneMap] Fetching themes {theme_names} near ({lat}, {lon}), radius={radius_km}km")
+    themes = theme_names
     results = []
     for theme in themes:
-        url = f"https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName={theme}"
-        headers = {"Authorization": ONEMAP_TOKEN}
+        url = f"{ONEMAP_BASE_URL}/api/public/themesvc/retrieveTheme?queryName={theme}"
+        headers = _get_onemap_auth_headers()
         try:
             resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code == 401:
+                fresh_token = get_onemap_access_token(force_refresh=True)
+                if fresh_token:
+                    token_value = fresh_token if str(fresh_token).lower().startswith("bearer ") else f"Bearer {fresh_token}"
+                    headers = {"Authorization": token_value}
+                    resp = requests.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
             data = resp.json()
             logger.debug(f"[OneMap] {theme} API returned {len(data.get('SrchResults', []))} results")
             for idx, item in enumerate(data.get("SrchResults", [])):
                 coords = item.get("LatLng")
                 logger.debug(f"[OneMap] {theme} result {idx}: NAME={item.get('NAME')}, LatLng={coords}")
-                if coords:
-                    try:
+                try:
+                    lat_ = None
+                    lon_ = None
+
+                    if coords:
                         parts = str(coords).split(",")
                         if len(parts) == 2:
                             lat_ = float(parts[0].strip())
                             lon_ = float(parts[1].strip())
-                            logger.debug(f"[OneMap] Parsed coords: lat={lat_}, lon={lon_}")
-                            dist = _haversine_km(lat, lon, lat_, lon_)
-                            logger.debug(f"[OneMap] Distance to ({lat_}, {lon_}): {dist}")
-                            if dist is not None and dist <= radius_km:
-                                logger.debug(f"[OneMap] {theme} result {idx} within {radius_km}km: {item.get('NAME')}")
-                                name = item.get("NAME") or item.get("Theme_Name") or ""
-                                block = (item.get("ADDRESSBLOCKHOUSENUMBER") or "").strip()
-                                street = (item.get("ADDRESSSTREETNAME") or "").strip()
-                                building = (item.get("ADDRESSBUILDINGNAME") or "").strip()
-                                postal = (item.get("ADDRESSPOSTALCODE") or "").strip()
-                                generic_address = (item.get("ADDRESS") or "").strip()
 
-                                addr_parts = []
-                                if generic_address:
-                                    addr_parts.append(generic_address)
+                    if lat_ is None or lon_ is None:
+                        raw_lat = item.get("LATITUDE") or item.get("Latitude") or item.get("lat") or item.get("Lat") or item.get("Y")
+                        raw_lon = item.get("LONGITUDE") or item.get("Longitude") or item.get("lon") or item.get("Lon") or item.get("lng") or item.get("X")
+                        if raw_lat is not None and raw_lon is not None:
+                            lat_ = float(raw_lat)
+                            lon_ = float(raw_lon)
 
-                                if block and block != "-":
-                                    if street:
-                                        addr_parts.append(f"{block} {street}")
-                                    else:
-                                        addr_parts.append(block)
-                                elif street:
-                                    addr_parts.append(street)
-
-                                if building and building.lower() != name.lower():
-                                    addr_parts.append(building)
-
-                                if postal:
-                                    if postal.isdigit() and len(postal) == 6:
-                                        addr_parts.append(f"Singapore {postal}")
-                                    else:
-                                        addr_parts.append(postal)
-
-                                seen = set()
-                                clean_parts = []
-                                for part in addr_parts:
-                                    key = part.lower()
-                                    if key not in seen:
-                                        seen.add(key)
-                                        clean_parts.append(part)
-
-                                address = ", ".join(clean_parts)
-                                results.append({
-                                    "lat": lat_,
-                                    "lon": lon_,
-                                    "name": name,
-                                    "address": address,
-                                    "type": theme,
-                                    "distance_km": dist
-                                })
-                    except Exception as e:
-                        logger.debug(f"[OneMap] Exception parsing coords for {theme} result {idx}: {e}")
+                    if lat_ is None or lon_ is None:
                         continue
+
+                    logger.debug(f"[OneMap] Parsed coords: lat={lat_}, lon={lon_}")
+                    dist = _haversine_km(lat, lon, lat_, lon_)
+                    logger.debug(f"[OneMap] Distance to ({lat_}, {lon_}): {dist}")
+                    if dist is not None and dist <= radius_km:
+                        logger.debug(f"[OneMap] {theme} result {idx} within {radius_km}km: {item.get('NAME')}")
+                        name = item.get("NAME") or item.get("Theme_Name") or item.get("DESCRIPTION") or ""
+                        block = (item.get("ADDRESSBLOCKHOUSENUMBER") or "").strip()
+                        street = (item.get("ADDRESSSTREETNAME") or "").strip()
+                        building = (item.get("ADDRESSBUILDINGNAME") or "").strip()
+                        postal = (item.get("ADDRESSPOSTALCODE") or "").strip()
+                        generic_address = (item.get("ADDRESS") or item.get("Address") or "").strip()
+
+                        addr_parts = []
+                        if generic_address:
+                            addr_parts.append(generic_address)
+
+                        if block and block != "-":
+                            if street:
+                                addr_parts.append(f"{block} {street}")
+                            else:
+                                addr_parts.append(block)
+                        elif street:
+                            addr_parts.append(street)
+
+                        if building and building.lower() != name.lower():
+                            addr_parts.append(building)
+
+                        if postal:
+                            if postal.isdigit() and len(postal) == 6:
+                                addr_parts.append(f"Singapore {postal}")
+                            else:
+                                addr_parts.append(postal)
+
+                        seen = set()
+                        clean_parts = []
+                        for part in addr_parts:
+                            key = part.lower()
+                            if key not in seen:
+                                seen.add(key)
+                                clean_parts.append(part)
+
+                        address = ", ".join(clean_parts)
+                        results.append({
+                            "lat": lat_,
+                            "lon": lon_,
+                            "name": name,
+                            "address": address,
+                            "type": theme,
+                            "distance_km": dist
+                        })
+                except Exception as e:
+                    logger.debug(f"[OneMap] Exception parsing coords for {theme} result {idx}: {e}")
+                    continue
         except Exception as e:
             logger.debug(f"[OneMap] Exception fetching {theme}: {e}")
             continue
-    logger.debug(f"[OneMap] Total healthcare amenities within {radius_km}km: {len(results)}")
+    logger.debug(f"[OneMap] Total theme amenities within {radius_km}km: {len(results)}")
     results = sorted(results, key=lambda x: x["distance_km"])
     for result in results:
         result.pop("distance_km", None)
         result.pop("type", None)
     return results[:limit]
+
+
+# ── Module-level cache for MRT station data (fetched once per app lifetime) ──
+_MRT_STATION_CACHE = {"data": None, "lock": threading.Lock()}
+
+
+def _fetch_onemap_transport(lat, lon, radius_km=3, limit=3):
+    """Fetch nearby MRT/LRT stations via OneMap search API with aggressive caching."""
+    logger = logging.getLogger("amenity_debug")
+
+    # Populate cache on first call
+    with _MRT_STATION_CACHE["lock"]:
+        if _MRT_STATION_CACHE["data"] is None:
+            logger.debug("[OneMap] Building MRT station cache from search API...")
+            all_stations = _build_mrt_station_cache()
+            _MRT_STATION_CACHE["data"] = all_stations
+            logger.debug(f"[OneMap] Cached {len(all_stations)} unique MRT/LRT stations")
+
+    stations = _MRT_STATION_CACHE["data"] or []
+    results = []
+    for stn in stations:
+        dist = _haversine_km(lat, lon, stn["lat"], stn["lon"])
+        if dist is not None and dist <= radius_km:
+            results.append({
+                "lat": stn["lat"],
+                "lon": stn["lon"],
+                "name": stn["name"],
+                "address": stn.get("address"),
+                "distance_km": dist,
+            })
+
+    results = sorted(results, key=lambda x: x["distance_km"])
+    for r in results:
+        r.pop("distance_km", None)
+    return results[:limit]
+
+
+def _build_mrt_station_cache():
+    """Fetch all MRT/LRT station entries from OneMap search, deduplicate by station name."""
+    headers = _get_onemap_auth_headers()
+    if not headers:
+        print("[OneMap] No auth headers for MRT search, returning empty")
+        return []
+    url = f"{ONEMAP_BASE_URL}/api/common/elastic/search"
+    seen_names = {}
+    page = 1
+    max_pages = 25  # ~250 results covers all unique stations
+
+    while page <= max_pages:
+        params = {
+            "searchVal": "MRT STATION",
+            "returnGeom": "Y",
+            "getAddrDetails": "Y",
+            "pageNum": page,
+        }
+        try:
+            resp = requests.get(url, params=params, headers=headers, timeout=10)
+            if resp.status_code != 200:
+                print(f"[OneMap] MRT search page {page}: HTTP {resp.status_code}, stopping")
+                break
+            data = resp.json()
+            results = data.get("results", [])
+            if not results:
+                break
+            for item in results:
+                sv = (item.get("SEARCHVAL") or "").strip()
+                if not sv:
+                    continue
+                # Extract base station name (remove exit codes like "EXIT A")
+                upper = sv.upper()
+                if "MRT" not in upper and "LRT" not in upper:
+                    continue
+                # Deduplicate: keep first occurrence per base station name
+                # e.g. "CALDECOTT MRT STATION (TE9)" and "CALDECOTT MRT STATION EXIT A"
+                # -> keep as "CALDECOTT MRT STATION"
+                base = upper
+                for sep in [" EXIT ", " - EXIT"]:
+                    idx = base.find(sep)
+                    if idx > 0:
+                        base = base[:idx].strip()
+                # Remove line codes in parens: "(TE9)" -> ""
+                base = re.sub(r'\s*\([A-Z]{1,3}\d{1,3}\)\s*$', '', base).strip()
+                if base in seen_names:
+                    continue
+                try:
+                    lat_ = float(item.get("LATITUDE", 0))
+                    lon_ = float(item.get("LONGITUDE", 0))
+                except (ValueError, TypeError):
+                    continue
+                if lat_ == 0 or lon_ == 0:
+                    continue
+                addr = (item.get("ADDRESS") or item.get("BLK_NO", "") + " " + item.get("ROAD_NAME", "")).strip()
+                seen_names[base] = {
+                    "name": sv,
+                    "lat": lat_,
+                    "lon": lon_,
+                    "address": addr if addr else None,
+                }
+            total_pages = data.get("totalNumPages", 1)
+            if page >= total_pages:
+                break
+            page += 1
+            time.sleep(0.15)  # rate-limit
+        except Exception as e:
+            print(f"[OneMap] Error fetching MRT page {page}: {e}")
+            break
+
+    print(f"[OneMap] MRT cache complete: {len(seen_names)} unique stations from {page} pages")
+    return list(seen_names.values())
 
 
 def _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit):
@@ -297,226 +504,10 @@ def _get_nearby_fallback_amenities(amenity_type, lat, lon, radius_km, limit):
 
     for amenity in fallback_data:
         dist = _haversine_km(lat, lon, amenity["lat"], amenity["lon"])
-        if dist is not None and dist <= radius_km:
+        if dist is None:
+            continue
+        if dist <= radius_km:
             amenity_copy = amenity.copy()
             results.append(amenity_copy)
-
-    return results[:limit]
-
-
-def _fetch_amenity_records(config, amenity_type, max_retries=3):
-    for attempt in range(max_retries):
-        try:
-            if config["format"] == "ckan_datastore":
-                url = f"https://data.gov.sg/api/action/datastore_search?resource_id={config['resource_id']}"
-                headers = {"x-api-key": DATA_GOV_API_KEY} if DATA_GOV_API_KEY else {}
-                response = requests.get(url, headers=headers, timeout=TIMEOUT_SEC)
-                response.raise_for_status()
-                try:
-                    data = response.json()
-                    if data.get("success"):
-                        records = data.get("result", {}).get("records", [])
-                        if records:
-                            print(f"DEBUG: Healthcare JSON records found: {len(records)}")
-                            return records
-                except Exception as e:
-                    print(f"DEBUG: Healthcare JSON parse failed: {e}")
-                print("DEBUG: Trying CSV fallback for healthcare dataset...")
-                response = requests.get(url.replace("datastore_search", "datastore_search?format=csv"), headers=headers, timeout=TIMEOUT_SEC)
-                response.raise_for_status()
-                csv_data = csv.DictReader(io.StringIO(response.text))
-                records = list(csv_data)
-                print(f"DEBUG: Healthcare CSV records found: {len(records)}")
-                return records
-
-            elif config["format"] == "metadata":
-                url = f"https://api-production.data.gov.sg/v2/public/api/collections/{config['collection_id']}/metadata"
-                response = requests.get(url, timeout=TIMEOUT_SEC)
-                response.raise_for_status()
-                data = response.json()
-                return data.get("records", [])
-
-            elif config["format"] == "poll_download":
-                url = f"https://api-open.data.gov.sg/v1/public/api/datasets/{config['dataset_id']}/poll-download"
-                headers = {"x-api-key": DATA_GOV_API_KEY} if DATA_GOV_API_KEY else {}
-                response = requests.get(url, headers=headers, timeout=TIMEOUT_SEC)
-                response.raise_for_status()
-                json_data = response.json()
-
-                if json_data.get("code") != 0:
-                    print(f"API error for {amenity_type}: {json_data.get('errMsg')}")
-                    return []
-
-                data_url = json_data.get("data", {}).get("url")
-                if not data_url:
-                    return []
-
-                response = requests.get(data_url, headers=headers, timeout=TIMEOUT_SEC)
-                response.raise_for_status()
-                try:
-                    geojson = json_module.loads(response.text)
-                    if isinstance(geojson, dict) and "features" in geojson:
-                        return geojson
-                    if isinstance(geojson, dict):
-                        return geojson.get("records", [])
-                    return geojson
-                except Exception:
-                    csv_data = csv.DictReader(io.StringIO(response.text))
-                    return list(csv_data)
-
-            return []
-
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    print(f"Rate limited for {amenity_type}, attempt {attempt+1}/{max_retries}. Waiting {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    raise
-            else:
-                raise
-        except Exception:
-            raise
-
-    return []
-
-
-def _filter_amenities_by_distance(records, lat, lon, radius_km, limit, amenity_type=None):
-    results = []
-    logger = logging.getLogger("amenity_debug")
-
-    if isinstance(records, dict) and "features" in records:
-        features = records["features"]
-        logger.debug(f"[AmenityDebug] GeoJSON features found: {len(features)}")
-        for i, feature in enumerate(features):
-            try:
-                coords = feature.get("geometry", {}).get("coordinates", [])
-                if len(coords) == 2:
-                    rec_lon, rec_lat = coords[0], coords[1]
-                    props = feature.get("properties", {})
-                    default_label = {
-                        "hawker": "Hawker Centre",
-                        "transport": "Transport Point",
-                        "parks": "Park",
-                    }.get(amenity_type, "Amenity")
-
-                    transport_station = (props.get("STATION_NA") or "").strip()
-                    transport_exit = (props.get("EXIT_CODE") or "").strip()
-                    transport_name = ""
-                    if amenity_type == "transport" and transport_station:
-                        transport_name = f"{transport_station} ({transport_exit})" if transport_exit else transport_station
-
-                    name_candidates = [
-                        transport_name,
-                        props.get("NAME"),
-                        props.get("Name"),
-                        props.get("name"),
-                        props.get("TITLE"),
-                        props.get("Title"),
-                        props.get("facility_name"),
-                        props.get("ADDRESSBUILDINGNAME"),
-                        props.get("DESCRIPTION"),
-                    ]
-                    name = next((str(v).strip() for v in name_candidates if v and str(v).strip()), f"Unnamed {default_label}")
-                    address = props.get("ADDRESS_MYENV")
-                    if not address:
-                        block = props.get("ADDRESSBLOCKHOUSENUMBER", "")
-                        street = props.get("ADDRESSSTREETNAME", "")
-                        postal = props.get("ADDRESSPOSTALCODE", "")
-                        addr_parts = []
-                        if block and str(block).strip() and str(block).strip() != "-":
-                            addr_parts.append(str(block).strip())
-                        if street and str(street).strip():
-                            addr_parts.append(str(street).strip())
-                        if postal and str(postal).strip():
-                            postal_text = str(postal).strip()
-                            if postal_text.isdigit() and len(postal_text) == 6:
-                                addr_parts.append(f"Singapore {postal_text}")
-                            else:
-                                addr_parts.append(postal_text)
-                        address = ", ".join(addr_parts)
-                    if not address or not str(address).strip() or str(address).strip().lower() == "singapore":
-                        resolved = onemap_reverse_geocode(rec_lat, rec_lon)
-                        address = resolved or "Address not available"
-                    logger.debug(f"[AmenityDebug] Feature {i}: Calling _haversine_km(lat={lat}, lon={lon}, rec_lat={rec_lat}, rec_lon={rec_lon})")
-                    logger.debug(f"[AmenityDebug] Types: lat={type(lat)}, lon={type(lon)}, rec_lat={type(rec_lat)}, rec_lon={type(rec_lon)}")
-                    try:
-                        dist = _haversine_km(lat, lon, rec_lat, rec_lon)
-                        logger.debug(f"[AmenityDebug] Feature {i}: _haversine_km result: {dist}")
-                    except Exception as e:
-                        logger.debug(f"[AmenityDebug] Feature {i}: Exception in _haversine_km: {e}")
-                        dist = None
-                    if i < 5:
-                        if dist is not None:
-                            logger.debug(f"[AmenityDebug] Feature {i}: name={name}, coords=({rec_lat}, {rec_lon}), dist={dist:.3f} km")
-                        else:
-                            logger.debug(f"[AmenityDebug] Feature {i}: name={name}, coords=({rec_lat}, {rec_lon}), dist=None (lat/lon={lat},{lon})")
-                    if dist is not None and dist <= radius_km:
-                        if amenity_type == "parks" and (not address or address.strip().lower() == "singapore"):
-                            resolved = onemap_reverse_geocode(rec_lat, rec_lon)
-                            address = resolved or "Address not available"
-                        results.append({
-                            "lat": rec_lat,
-                            "lon": rec_lon,
-                            "name": name,
-                            "address": address
-                        })
-            except Exception as e:
-                logger.debug(f"[AmenityDebug] Exception parsing feature {i}: {e}, coords={feature.get('geometry', {}).get('coordinates', [])}")
-                continue
-        logger.debug(f"[AmenityDebug] Amenities within {radius_km}km: {len(results)} (limit {limit})")
-        return results[:limit]
-
-    for record in records:
-        try:
-            rec_lat = None
-            rec_lon = None
-            for lat_field in ["latitude", "Latitude", "lat", "Lat", "LATITUDE", "lat_long"]:
-                if lat_field in record:
-                    val = record[lat_field]
-                    if val:
-                        rec_lat = float(val)
-                        break
-            for lon_field in ["longitude", "Longitude", "lon", "Lon", "LONGITUDE", "Long"]:
-                if lon_field in record:
-                    val = record[lon_field]
-                    if val:
-                        rec_lon = float(val)
-                        break
-            if rec_lat is None or rec_lon is None or (rec_lat == 0 and rec_lon == 0):
-                name = None
-                for name_field in ["name", "Name", "NAME", "facility_name", "title", "Title", "place_name", "Place"]:
-                    if name_field in record and record[name_field]:
-                        name = record[name_field]
-                        break
-                if name:
-                    geo = get_nearby_amenity_location(name, "Singapore")
-                    if geo:
-                        rec_lat = geo["lat"]
-                        rec_lon = geo["lon"]
-            if rec_lat is None or rec_lon is None or (rec_lat == 0 and rec_lon == 0):
-                continue
-            dist = _haversine_km(lat, lon, rec_lat, rec_lon)
-            if dist <= radius_km:
-                name = None
-                for name_field in ["name", "Name", "NAME", "facility_name", "Facility Name", "Facility"]:
-                    if name_field in record:
-                        name = record[name_field]
-                        break
-                address = None
-                for addr_field in ["address", "Address", "ADDRESS", "location", "Location", "Address Block"]:
-                    if addr_field in record:
-                        address = record[addr_field]
-                        break
-                results.append({
-                    "lat": rec_lat,
-                    "lon": rec_lon,
-                    "name": name or "Unnamed Facility",
-                    "address": address or ""
-                })
-        except (ValueError, TypeError, KeyError):
-            continue
 
     return results[:limit]
