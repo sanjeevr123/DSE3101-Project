@@ -1,3 +1,6 @@
+from email.policy import default
+
+
 PAGE_BG = "linear-gradient(135deg, #e8f7ff 0%, #eefcf3 55%, #f2f5ff 100%)"
 SHADOW = "0 10px 26px rgba(15, 23, 42, 0.12)"
 
@@ -39,9 +42,11 @@ label_style = {
 
 input_style_big = {
     "width": "100%",
-    "padding": "18px",
-    "fontSize": "24px",
-    "borderRadius": "18px",
+    "padding": "18px",                
+    "fontSize": "24px",              
+    "lineHeight": "32px",            
+    "height": "62px",      
+    "borderRadius": "18px",           
     "border": "2px solid rgba(15,23,42,0.18)",
 }
 

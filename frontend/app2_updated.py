@@ -22,6 +22,14 @@
 
 
 import logging
+from dash import Dash, html, dcc, Input, Output, State
+import dash
+import requests
+import time
+import json as json_module
+import csv
+import io
+import re
 logging.basicConfig(level=logging.DEBUG, force=True)
 logger = logging.getLogger("amenity_debug")
 logger.setLevel(logging.DEBUG)
@@ -465,8 +473,10 @@ def step_4_results():
         html.Div("Step 4: Results", style={"fontSize": "36px", "fontWeight": "950"}),
         html.Div([
             # Left column: results — MEMBER 8: owns this section
+            # amanda: 2 html.button() added
             html.Div([
                 html.Button("Run results", id="btn_run_all", n_clicks=0, style=btn_primary),
+                html.Button("Compare Units", id="btn_compare", n_clicks=0, style={**btn_primary, "marginLeft": "10px", "backgroundColor": "#8b5cf6"}),
                 html.Div(id="results_list", style={"marginTop": "16px"}),
                 html.Div([
                     html.Button("Start over", id="btn_reset", n_clicks=0, style=btn_reset),
@@ -521,6 +531,8 @@ app.layout = html.Div([
     dcc.Store(id="prefs_weights"),
     dcc.Store(id="constraints"),
     dcc.Store(id="recs_data"),
+    dcc.Store(id="selected_units", data=[]),
+    dcc.Store(id="modal_open", data=False),
 
     html.Div([
         html.Div([
@@ -531,6 +543,46 @@ app.layout = html.Div([
         html.Div(id="main_content", style=container_style),
         html.Div(id="nav_area", style=container_style),
     ], style=base_page_style),
+
+    # Comparison modal — MEMBER 8: Compare Units popup
+    html.Div(id="comparison_modal", style={
+        "display": "none",
+        "position": "fixed",
+        "top": "0",
+        "left": "0",
+        "width": "100%",
+        "height": "100%",
+        "backgroundColor": "rgba(0, 0, 0, 0.5)",
+        "zIndex": "1000",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "overflow": "auto",
+    }, children=[
+        html.Div([
+            html.Div([
+                html.Span("Compare Selected Units", style={"fontSize": "28px", "fontWeight": "950"}),
+                html.Button("✕", id="btn_close_modal", n_clicks=0, style={
+                    "position": "absolute",
+                    "top": "20px",
+                    "right": "20px",
+                    "background": "none",
+                    "border": "none",
+                    "fontSize": "32px",
+                    "cursor": "pointer",
+                    "color": "#64748b",
+                }),
+            ], style={"position": "relative", "marginBottom": "20px"}),
+            html.Div(id="comparison_table_container"),
+        ], style={
+            **card_style,
+            "position": "relative",
+            "maxWidth": "1000px",
+            "maxHeight": "80vh",
+            "overflow": "auto",
+            "width": "90%",
+            "margin": "0 auto",
+        }),
+    ]),
 ])
 
 
@@ -573,6 +625,9 @@ def go_next_back(n_next, n_back, step):
 
 # ── Step 1: auto-save + geocode ──
 
+def is_valid_sg_postal(postal):
+    return bool(re.fullmatch(r"\d{6}", postal))
+
 @app.callback(
     Output("sell_payload", "data"),
     Output("sell_geo", "data"),
@@ -580,21 +635,54 @@ def go_next_back(n_next, n_back, step):
     Input("sell_postal", "value"),
     Input("sell_flat_type", "value"),
     Input("sell_area", "value"),
+    prevent_initial_call=True,
 )
+
+# amanda: fixing autosave postal code between steps. (added the autosave_step1 function)
 def autosave_step1(postal, flat_type, area):
+    """Auto-save Step 1 form data and geocode the postal code."""
     postal = (postal or "").strip()
+    flat_type = flat_type or "4 ROOM"
+    
+    # Always create the payload with provided data
     payload = {
         "postal": postal,
         "flat_type": flat_type,
         "floor_area_sqm": float(area) if area not in (None, "") else None,
     }
+    
+    # Validation checks
     if not postal:
-        return payload, None, html.Div("Please enter your postal code.", style=banner_warn)
-    geo = onemap_search(postal) or onemap_search(f"Singapore {postal}")
-    if not geo:
-        return payload, None, html.Div("⚠️ Could not locate postal code on map. Please check it.", style=banner_warn)
-    return payload, geo, html.Div("✅ Saved. We found your location.", style=banner_ok)
-
+        msg = html.Div("📍 Please enter your postal code.", style=banner_warn)
+        return payload, None, msg
+    
+    if not is_valid_sg_postal(postal):
+        msg = html.Div("⚠️ Invalid postal code. Must be 6 digits (e.g., 560123).", style=banner_warn)
+        return payload, None, msg
+    
+    # Try to geocode
+    geo = None
+    try:
+        logger.info(f"[Geocoding] Searching for postal code: {postal}")
+        geo = onemap_search(postal)
+        if not geo:
+            geo = onemap_search(f"Singapore {postal}")
+        
+        if geo:
+            logger.info(f"[Geocoding] Found: {geo}")
+            msg = html.Div("✅ Postal code saved. Location found.", style=banner_ok)
+            return payload, geo, msg
+        else:
+            logger.warning(f"[Geocoding] Could not find postal code: {postal}")
+            msg = html.Div("⚠️ Postal code saved, but location not found on map (API error). You can still proceed.", style=banner_warn)
+            # Return payload even if geocoding fails - let user proceed
+            return payload, None, msg
+    
+    except Exception as e:
+        logger.error(f"[Geocoding Error] {str(e)}", exc_info=True)
+        msg = html.Div(f"⚠️ Postal code saved. Map lookup failed: check your connection.", style=banner_warn)
+        # Return payload even on error - important!
+        return payload, None, msg
 
 # ── Step 1: estimate price ──
 
@@ -607,7 +695,7 @@ def autosave_step1(postal, flat_type, area):
 )
 def estimate_price(n, sell_payload):
     if not sell_payload or not sell_payload.get("postal"):
-        return None, html.Div("Please enter your postal code first.", style=banner_warn)
+        return None, ""
 
     # MEMBER 5: try real backend first, fall back to mock
     pred = safe_post("/predict/sell", sell_payload)
@@ -717,8 +805,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
     # Derived fields
     for r in recs:
         r["cash_unlocked"] = int(sell_pred["price"] - r["buy_price"])
-        dist = haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"])
-        r["dist_from_home_km"] = round(dist, 2) if dist is not None else 0.0
+        r["dist_from_home_km"] = round(haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"]), 2)
 
     # ── Result cards — MEMBER 8: customise everything in this block ──
     cards = []
@@ -729,6 +816,15 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
             max_price=int(r["buy_price"] * 1.10),
         )
         cards.append(html.Div([
+            # MEMBER 8: selection checkbox
+            dcc.Checklist(
+                id={"type": "unit_checkbox", "index": i - 1},
+                options=[{"label": "Compare this unit", "value": i - 1}],
+                value=[],
+                style={"marginBottom": "12px"},
+                inline=True,
+            ),
+        
             # MEMBER 8: card title
             html.Div(f"#{i} • {r['town']} • {r['rooms']} rooms", style={
                 "fontSize": "28px",           # MEMBER 8: title size
@@ -904,6 +1000,175 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
 )
 def reset_all(n):
     return 1, None, None, None, None, None, None
+
+
+# amanda: added this whole compare units segment for the comparison selection and panels
+# ── Compare Units — MEMBER 8: comparison logic ──
+
+@app.callback(
+    Output("selected_units", "data"),
+    Input({"type": "unit_checkbox", "index": dash.ALL}, "value"),
+    prevent_initial_call=True,
+)
+def update_selected_units(checkbox_values):
+    """Track which units are selected for comparison"""
+    # checkbox_values is a list of lists, where each inner list contains the selected values
+    selected_indices = []
+    for values in checkbox_values:
+        if values:
+            selected_indices.extend(values)
+    return selected_indices
+
+
+@app.callback(
+    Output("modal_open", "data"),
+    Input("step", "data"),
+    Input("btn_run_all", "n_clicks"),
+    Input("btn_compare", "n_clicks"),
+    Input("btn_close_modal", "n_clicks"),
+    State("selected_units", "data"),
+)
+def control_comparison_modal(step, n_run_all, n_compare, n_close, selected_indices):
+    """Control comparison modal open/close state"""
+    trig = dash.callback_context.triggered_id
+
+    if trig == "step" or trig == "btn_run_all":
+        return False
+
+    if trig == "btn_close_modal":
+        return False
+
+    if trig == "btn_compare":
+        # open only with at least one selected unit
+        if not selected_indices:
+            return False
+        return True
+
+    return False
+
+
+@app.callback(
+    Output("comparison_modal", "style"),
+    Output("comparison_table_container", "children"),
+    Input("modal_open", "data"),
+    State("selected_units", "data"),
+    State("recs_data", "data"),
+    prevent_initial_call=True,
+)
+def render_comparison_modal(is_open, selected_indices, recs_data):
+    """Render comparison modal content"""
+    
+    if not is_open:
+        # Keep modal hidden
+        return {
+            "display": "none",
+            "position": "fixed",
+            "top": "0",
+            "left": "0",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "rgba(0, 0, 0, 0.5)",
+            "zIndex": "1000",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "overflow": "auto",
+        }, ""
+    
+    # Modal is open - generate content
+    if not selected_indices or not recs_data:
+        table_content = html.Div("Please select at least one unit to compare.", style={"fontSize": "16px", "color": "#ef4444"})
+    else:
+        # Build comparison table
+        selected_recs = [recs_data[i] for i in selected_indices if i < len(recs_data)]
+        
+        if not selected_recs:
+            table_content = html.Div("No units selected. Please try again.", style={"fontSize": "16px", "color": "#ef4444"})
+        else:
+            # Table header
+            headers = ["Metric", *[f"Option #{i+1}" for i in selected_indices]]
+            
+            # Table rows with best/worst colouring
+            metrics = [
+                ("Town", "town", None),
+                ("Rooms", "rooms", None),
+                ("Buy Price (est.)", "buy_price", "min"),
+                ("Cash Unlocked (est.)", "cash_unlocked", "max"),
+                ("Distance from Your Flat", "dist_from_home_km", "min"),
+                ("Clinic Nearby", "clinic_dist_m", "min"),
+                ("Hawker Nearby", "hawker_dist_m", "min"),
+                ("Park Nearby", "park_dist_m", "min"),
+                ("MRT Distance (approx)", "mrt_dist_km", "min"),
+            ]
+
+            # Pre-calc best and worst indices per metric
+            metric_perf = {}
+            for metric_label, metric_key, prefer in metrics:
+                values = [selected_recs[i].get(metric_key) for i in range(len(selected_recs))]
+                if prefer and all([isinstance(v, (int, float)) for v in values]):
+                    if prefer == "max":
+                        best_idx = max(range(len(values)), key=lambda j: values[j])
+                        worst_idx = min(range(len(values)), key=lambda j: values[j])
+                    else:
+                        best_idx = min(range(len(values)), key=lambda j: values[j])
+                        worst_idx = max(range(len(values)), key=lambda j: values[j])
+                    metric_perf[metric_key] = {"best": best_idx, "worst": worst_idx}
+                else:
+                    metric_perf[metric_key] = None
+
+            rows = []
+            for metric_label, metric_key, prefer in metrics:
+                format_fn = (lambda x: x) if not prefer else (lambda x: x)
+                if metric_key == "buy_price" or metric_key == "cash_unlocked":
+                    formatter = lambda x: f"${x:,.0f}"
+                elif metric_key == "dist_from_home_km":
+                    formatter = lambda x: f"{x} km"
+                elif metric_key in ["clinic_dist_m", "hawker_dist_m", "park_dist_m"]:
+                    formatter = lambda x: f"~{x}m"
+                elif metric_key == "mrt_dist_km":
+                    formatter = lambda x: f"{x:.2f} km"
+                else:
+                    formatter = str
+
+                row = [html.Td(metric_label, style={"fontWeight": "700", "padding": "10px", "borderRight": "1px solid #e2e8f0"})]
+                for idx, rec in enumerate(selected_recs):
+                    value = rec.get(metric_key, "N/A")
+                    display = formatter(value) if value != "N/A" else "N/A"
+                    cell_style = {"padding": "10px", "textAlign": "center"}
+                    perf = metric_perf.get(metric_key)
+                    if perf and value != "N/A":
+                        if idx == perf["best"]:
+                            cell_style.update({"backgroundColor": "#dcfce7", "color": "#166534", "fontWeight": "700"})
+                        elif idx == perf["worst"]:
+                            cell_style.update({"backgroundColor": "#fee2e2", "color": "#991b1b"})
+                    row.append(html.Td(display, style=cell_style))
+                rows.append(html.Tr(row))
+            
+            table_content = html.Table(
+                [
+                    html.Thead(html.Tr([html.Th(h, style={"padding": "12px", "textAlign": "center", "fontWeight": "700", "borderBottom": "2px solid #0ea5e9"}) for h in headers])),
+                    html.Tbody(rows),
+                ],
+                style={
+                    "width": "100%",
+                    "borderCollapse": "collapse",
+                    "marginTop": "20px",
+                    "fontSize": "16px",
+                }
+            )
+    
+    return {
+        "display": "flex",
+        "position": "fixed",
+        "top": "0",
+        "left": "0",
+        "width": "100%",
+        "height": "100%",
+        "backgroundColor": "rgba(0, 0, 0, 0.5)",
+        "zIndex": "1000",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "overflow": "auto",
+    }, table_content
 
 
 # ============================================================================
