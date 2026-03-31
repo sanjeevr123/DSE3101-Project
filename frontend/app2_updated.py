@@ -352,9 +352,14 @@ def nav_row(step):
     if step == 1:
         back_style.update({"opacity": "0.45", "cursor": "not-allowed", "boxShadow": "none"})
 
+    compare_style = {**btn_primary, "marginLeft": "10px", "backgroundColor": "#8b5cf6"} if step == 4 else {"display": "none"}
+
     return html.Div([
         html.Button("← Back", id="btn_back", n_clicks=0, style=back_style, disabled=(step == 1)),
-        html.Button(next_label, id="btn_next", n_clicks=0, style=btn_primary),
+        html.Div([
+            html.Button(next_label, id="btn_next", n_clicks=0, style=btn_primary),
+            html.Button("Compare Units", id="btn_compare", n_clicks=0, style=compare_style),
+        ], style={"display": "flex", "gap": "10px"}),
     ], style={"display": "flex", "gap": "14px", "justifyContent": "space-between", "marginTop": "18px"})
 
 
@@ -476,7 +481,6 @@ def step_4_results():
             # amanda: 2 html.button() added
             html.Div([
                 html.Button("Run results", id="btn_run_all", n_clicks=0, style=btn_primary),
-                html.Button("Compare Units", id="btn_compare", n_clicks=0, style={**btn_primary, "marginLeft": "10px", "backgroundColor": "#8b5cf6"}),
                 html.Div(id="results_list", style={"marginTop": "16px"}),
                 html.Div([
                     html.Button("Start over", id="btn_reset", n_clicks=0, style=btn_reset),
@@ -977,12 +981,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
 
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
-    # Display hawker / food debug table
-    hawker_table = html.Table([
-        html.Tr([html.Th("Name"), html.Th("Address"), html.Th("Lat"), html.Th("Lon"), html.Th("Distance from home")])
-    ] + [html.Tr([html.Td(x) for x in row]) for row in hawker_debug_rows], style={"marginTop": "18px", "fontSize": "16px", "background": "#f9fafb", "borderRadius": "12px", "padding": "8px"})
-
-    return html.Div([*cards, hawker_table]), map_doc, recs
+    return html.Div([*cards]), map_doc, recs
 
 
 # ── Reset ──
@@ -1023,16 +1022,17 @@ def update_selected_units(checkbox_values):
 @app.callback(
     Output("modal_open", "data"),
     Input("step", "data"),
-    Input("btn_run_all", "n_clicks"),
+    Input("recs_data", "data"),
     Input("btn_compare", "n_clicks"),
     Input("btn_close_modal", "n_clicks"),
     State("selected_units", "data"),
+    prevent_initial_call=True,
 )
-def control_comparison_modal(step, n_run_all, n_compare, n_close, selected_indices):
+def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indices):
     """Control comparison modal open/close state"""
     trig = dash.callback_context.triggered_id
 
-    if trig == "step" or trig == "btn_run_all":
+    if trig == "step" or trig == "recs_data":
         return False
 
     if trig == "btn_close_modal":
