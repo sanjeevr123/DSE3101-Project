@@ -119,6 +119,8 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     """
     Generate a complete Leaflet HTML page as a string for iframe injection.
     MEMBER 6: customise tile layer, marker styles, legend, popups, zoom.
+    
+    Points format: each point can have optional 'rec_index' to group recommendations into layers
     """
     def js_point(p):
         return {
@@ -127,7 +129,8 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
             "lon": p["lon"], 
             "color": p.get("color", "#0ea5e9"),
             "price": p.get("price", "N/A"),        # Adding price information
-            "distance": p.get("distance", "N/A")   # Adding distance information
+            "distance": p.get("distance", "N/A"),  # Adding distance information
+            "rec_index": p.get("rec_index", -1),   # MEMBER 6: -1 for your flat, >=0 for recommendations
         }
 
     def js_am(a):
@@ -137,7 +140,8 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
             "lon": a["lon"], 
             "kind": a.get("kind", "Amenity"),
             "address": a.get("address"),  # None for transport amenities
-            "distance": a.get("distance", "N/A")
+            "distance": a.get("distance", "N/A"),
+            "rec_index": a.get("rec_index", -1),   # MEMBER 6: which recommendation this amenity belongs to
         }
 
     points_js = json_module.dumps([js_point(p) for p in points])
@@ -184,8 +188,10 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
   <!-- MEMBER 6: update legend labels and dot colours -->
     <div class="legend" id="layer-controls">
         <div class="legend-title">Map Layers</div>
-        <div class="legend-note">Toggle amenities with switches</div>
-        <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat • 🏢 Recommended flats</div>
+        <div class="legend-note">Toggle layers with switches</div>
+        <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat</div>
+        <div id="recommendation-toggles" style="margin-bottom:8px;"></div>
+        <div style="margin-bottom:8px; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size:13px; font-weight:900;">Amenities</div>
         <div class="toggle-row">
             <span>🏥 Healthcare</span>
             <label class="switch"><input type="checkbox" data-kind="healthcare" checked><span class="slider"></span></label>
@@ -215,12 +221,26 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
 
     const points = {points_js};
     const amenities = {amen_js};
-        const amenityLayers = {{
+    
+    // MEMBER 6: Create nested layer groups for amenities within each recommendation
+    const recAmenityLayers = {{}};  // recAmenityLayers[recIdx][amenityKind] = layer
+    const uniqueRecIndices = [...new Set(points.filter(p => p.rec_index >= 0).map(p => p.rec_index))];
+    
+    uniqueRecIndices.forEach(idx => {{
+        recAmenityLayers[idx] = {{
             'healthcare': L.layerGroup().addTo(map),
             'transport': L.layerGroup().addTo(map),
             'hawker / food': L.layerGroup().addTo(map),
             'nature': L.layerGroup().addTo(map)
         }};
+    }});
+    
+    // MEMBER 6: Create layer groups for each recommendation (flat markers)
+    const recLayers = {{}};
+    uniqueRecIndices.forEach(idx => {{
+        recLayers[idx] = L.layerGroup().addTo(map);
+    }});
+    
     const homeIcon = L.icon({{
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
       iconSize: [25, 41],
@@ -240,13 +260,20 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       popupAnchor: [1, -34],
     }});
 
-    // Add markers for points
+    // Add markers for points (your flat + recommendations)
     points.forEach((p, index) => {{
       const icon = index === 0 ? homeIcon : recommendIcon;
-      L.marker([p.lat, p.lon], {{ icon: icon }}).addTo(map).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
+      const marker = L.marker([p.lat, p.lon], {{ icon: icon }}).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
+      
+      // MEMBER 6: Add to appropriate layer
+      if (p.rec_index === -1) {{
+        marker.addTo(map);  // Your flat always visible
+      }} else {{
+        marker.addTo(recLayers[p.rec_index]);  // Recommendation on its layer
+      }}
     }});
 
-    // Add markers for amenities
+    // Add markers for amenities (tied to specific recommendations)
     amenities.forEach(a => {{
       let iconHtml = '';
       switch(a.kind) {{
@@ -262,27 +289,98 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
         iconSize: [30, 30],
         iconAnchor: [15, 15]
       }});
-            const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
-            const layer = amenityLayers[a.kind];
-            if (layer) {{
-                marker.addTo(layer);
-            }} else {{
-                marker.addTo(map);
-            }}
+      const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
+      
+      // MEMBER 6: Add amenity to the nested layer group for its recommendation
+      if (a.rec_index >= 0 && recAmenityLayers[a.rec_index]) {{
+        const layer = recAmenityLayers[a.rec_index][a.kind];
+        if (layer) {{
+          marker.addTo(layer);
+        }}
+      }}
+    }});
+    
+    // MEMBER 6: Generate toggles for recommendations in legend
+    const recToggleContainer = document.getElementById('recommendation-toggles');
+    points.forEach((p, idx) => {{
+        if (p.rec_index >= 0) {{
+            const toggleHtml = `
+                <div class="toggle-row">
+                    <span>🏢 ${{p.name.split(' • ')[0]}}</span>
+                    <label class="switch"><input type="checkbox" data-rec-index="${{p.rec_index}}" checked><span class="slider"></span></label>
+                </div>
+            `;
+            recToggleContainer.innerHTML += toggleHtml;
+        }}
     }});
 
-        document.querySelectorAll('#layer-controls input[type="checkbox"]').forEach(cb => {{
-            cb.addEventListener('change', (event) => {{
-                const kind = event.target.getAttribute('data-kind');
-                const layer = amenityLayers[kind];
-                if (!layer) return;
+    // Event listeners for recommendation toggles
+    // When a recommendation is toggled, toggle BOTH its marker AND its amenities
+    document.querySelectorAll('#layer-controls input[data-rec-index]').forEach(cb => {{
+        cb.addEventListener('change', (event) => {{
+            const recIdx = parseInt(event.target.getAttribute('data-rec-index'));
+            const recMarkerLayer = recLayers[recIdx];
+            const recAmenities = recAmenityLayers[recIdx];
+            
+            if (event.target.checked) {{
+                // Turn ON: show flat marker + amenities (if their toggles are enabled)
+                if (recMarkerLayer && !map.hasLayer(recMarkerLayer)) {{
+                    recMarkerLayer.addTo(map);
+                }}
+                // Add amenity layers if their global toggles are enabled
+                if (recAmenities) {{
+                    document.querySelectorAll('#layer-controls input[data-kind]').forEach(amenityToggle => {{
+                        if (amenityToggle.checked) {{
+                            const amenityKind = amenityToggle.getAttribute('data-kind');
+                            const amenityLayer = recAmenities[amenityKind];
+                            if (amenityLayer && !map.hasLayer(amenityLayer)) {{
+                                amenityLayer.addTo(map);
+                            }}
+                        }}
+                    }});
+                }}
+            }} else {{
+                // Turn OFF: hide flat marker + all its amenities
+                if (recMarkerLayer && map.hasLayer(recMarkerLayer)) {{
+                    map.removeLayer(recMarkerLayer);
+                }}
+                if (recAmenities) {{
+                    Object.values(recAmenities).forEach(amenityLayer => {{
+                        if (amenityLayer && map.hasLayer(amenityLayer)) {{
+                            map.removeLayer(amenityLayer);
+                        }}
+                    }});
+                }}
+            }}
+        }});
+    }});
+    
+    // Event listeners for amenity toggles
+    // These toggle amenities across ALL active recommendations
+    document.querySelectorAll('#layer-controls input[data-kind]').forEach(cb => {{
+        cb.addEventListener('change', (event) => {{
+            const amenityKind = event.target.getAttribute('data-kind');
+            
+            // Toggle this amenity type for all recommendations
+            uniqueRecIndices.forEach(recIdx => {{
+                const amenityLayer = recAmenityLayers[recIdx][amenityKind];
+                if (!amenityLayer) return;
+                
                 if (event.target.checked) {{
-                    if (!map.hasLayer(layer)) layer.addTo(map);
+                    // Turn ON amenity: show it if its recommendation is visible
+                    const recMarkerLayer = recLayers[recIdx];
+                    if (map.hasLayer(recMarkerLayer) && !map.hasLayer(amenityLayer)) {{
+                        amenityLayer.addTo(map);
+                    }}
                 }} else {{
-                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                    // Turn OFF amenity: hide it everywhere
+                    if (map.hasLayer(amenityLayer)) {{
+                        map.removeLayer(amenityLayer);
+                    }}
                 }}
             }});
         }});
+    }});
 
     // MEMBER 6: adjust fit-bounds padding
     const all = points.map(p => [p.lat, p.lon]).concat(amenities.map(a => [a.lat, a.lon]));
@@ -537,6 +635,7 @@ app.layout = html.Div([
     dcc.Store(id="recs_data"),
     dcc.Store(id="selected_units", data=[]),
     dcc.Store(id="modal_open", data=False),
+    dcc.Store(id="selected_recommendation", data=None),  # MEMBER 5: track focused flat (index or None)
 
     html.Div([
         html.Div([
@@ -811,7 +910,175 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
         r["cash_unlocked"] = int(sell_pred["price"] - r["buy_price"])
         r["dist_from_home_km"] = round(haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"]), 2)
 
+    # ── Map — MEMBER 6: customise markers and amenities ──
+    points = [
+        {"name": f"Your flat ({sell_payload['postal']})", "lat": sell_geo["lat"], "lon": sell_geo["lon"], "color": "#0ea5e9", "rec_index": -1},
+    ]
+    for i, r in enumerate(recs):
+        points.append({
+            "name": f"Option #{i+1}: {r['town']} ({r['postal']})",
+            "lat": r["lat"], 
+            "lon": r["lon"], 
+            "color": "#22c55e", 
+            "price": r["buy_price"],
+            "distance": f"{r['dist_from_home_km']} km",
+            "rec_index": i,  # MEMBER 6: index for toggle layer grouping
+        })
+
+    # Fetch real amenities from OneMap — MEMBER 6: customize themes
+    amenities = []
+    base_lat, base_lon = sell_geo["lat"], sell_geo["lon"]
+    radius_km = 2.0
+    hawker_debug_rows = []
+    for idx, r in enumerate(recs):
+        rec_lat, rec_lon = r["lat"], r["lon"]
+        
+        # Track nearest amenity of each type for display in the card
+        nearest_amenities = {
+            "healthcare": None,
+            "hawker": None,
+            "transport": None,
+            "nature": None,
+        }
+
+        # Healthcare (CHAS clinics, sorted by distance)
+        healthcare_amenities = get_nearby_amenities("healthcare", rec_lat, rec_lon, radius_km=1.0, limit=9999)
+        healthcare_with_dist = []
+        for amenity in healthcare_amenities:
+            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+            healthcare_with_dist.append({**amenity, "distance_km": dist})
+        healthcare_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(healthcare_with_dist)} clinics for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        
+        # Store nearest healthcare for card display
+        if healthcare_with_dist:
+            nearest = healthcare_with_dist[0]
+            nearest_amenities["healthcare"] = {
+                "name": nearest["name"],
+                "dist_m": int(nearest["distance_km"] * 1000),
+            }
+        
+        for amenity in healthcare_with_dist:
+            dist_from_home = amenity["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": amenity["name"],
+                "lat": amenity["lat"],
+                "lon": amenity["lon"],
+                "kind": "healthcare",
+                "address": amenity.get("address", ""),
+                "distance": dist_str,
+                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+            })
+
+        # Hawker centres & food courts
+        hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=1.0, limit=100)
+        hawker_with_dist = []
+        for amenity in hawker_amenities:
+            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+            if dist is not None and dist <= 1.0:
+                hawker_with_dist.append({**amenity, "distance_km": dist})
+        hawker_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(hawker_with_dist)} hawker/food courts within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        
+        # Store nearest hawker for card display
+        if hawker_with_dist:
+            nearest = hawker_with_dist[0]
+            nearest_amenities["hawker"] = {
+                "name": nearest["name"],
+                "dist_m": int(nearest["distance_km"] * 1000),
+            }
+        
+        for amenity in hawker_with_dist:
+            dist_from_home = amenity["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": amenity["name"],
+                "lat": amenity["lat"],
+                "lon": amenity["lon"],
+                "kind": "hawker / food",
+                "address": amenity.get("address", ""),
+                "distance": dist_str,
+                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+            })
+            hawker_debug_rows.append([
+                amenity["name"], amenity.get("address", ""), amenity["lat"], amenity["lon"], dist_str
+            ])
+
+        # Transport (MRT/LRT stations via OneMap search)
+        transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=1.0, limit=100)
+        transport_with_dist = []
+        for amenity in transport_amenities:
+            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+            if dist is not None and dist <= 1.0:
+                transport_with_dist.append({**amenity, "distance_km": dist})
+        transport_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(transport_with_dist)} transport points within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        
+        # Store nearest transport for card display
+        if transport_with_dist:
+            nearest = transport_with_dist[0]
+            nearest_amenities["transport"] = {
+                "name": nearest["name"],
+                "dist_m": int(nearest["distance_km"] * 1000),
+            }
+        
+        for amenity in transport_with_dist:
+            dist_from_home = amenity["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": amenity["name"],
+                "lat": amenity["lat"],
+                "lon": amenity["lon"],
+                "kind": "transport",
+                "address": amenity.get("address", ""),
+                "distance": dist_str,
+                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+            })
+
+        # Nature parks (API, fallback if needed)
+        park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=1.0, limit=100)
+        park_with_dist = []
+        for park in park_amenities:
+            dist = haversine_km(rec_lat, rec_lon, park["lat"], park["lon"])
+            if dist is not None and dist <= 1.0:
+                park_with_dist.append({**park, "distance_km": dist})
+        park_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+        logger.info(f"DEBUG: Found {len(park_with_dist)} parks within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
+        
+        # Store nearest park for card display
+        if park_with_dist:
+            nearest = park_with_dist[0]
+            nearest_amenities["nature"] = {
+                "name": nearest["name"],
+                "dist_m": int(nearest["distance_km"] * 1000),
+            }
+        
+        for park in park_with_dist:
+            dist_from_home = park["distance_km"]
+            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+            amenities.append({
+                "name": park["name"],
+                "lat": park["lat"],
+                "lon": park["lon"],
+                "kind": "nature",
+                "address": park.get("address", ""),
+                "distance": dist_str,
+                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+            })
+            hawker_debug_rows.append([
+                park["name"], park.get("address", ""), park["lat"], park["lon"], dist_str
+            ])
+
+        # NOTE: We intentionally skip healthcare/parks/mrt for now to reduce API load.
+        # Store nearest amenities in recommendation for card display
+        r["nearest_healthcare"] = nearest_amenities["healthcare"]
+        r["nearest_hawker"] = nearest_amenities["hawker"]
+        r["nearest_transport"] = nearest_amenities["transport"]
+        r["nearest_nature"] = nearest_amenities["nature"]
+
     # ── Result cards — MEMBER 8: customise everything in this block ──
+    # (built AFTER amenity fetching so nearest_* data is available)
     cards = []
     for i, r in enumerate(recs, start=1):
         pg_url = build_propertyguru_url(
@@ -819,6 +1086,17 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
             min_price=max(0, int(r["buy_price"] * 0.90)),
             max_price=int(r["buy_price"] * 1.10),
         )
+
+        # Build amenity description strings
+        hc = r.get("nearest_healthcare")
+        hw = r.get("nearest_hawker")
+        tr = r.get("nearest_transport")
+        na = r.get("nearest_nature")
+        health_str = f"{hc['name']} ~{hc['dist_m']}m" if hc else "No healthcare within 1km"
+        hawker_str = f"{hw['name']} ~{hw['dist_m']}m" if hw else "No hawker within 1km"
+        transport_str = f"{tr['name']} ~{tr['dist_m']}m" if tr else "No transport within 1km"
+        nature_str = f"{na['name']} ~{na['dist_m']}m" if na else "No nature within 1km"
+
         cards.append(html.Div([
             # MEMBER 8: selection checkbox
             dcc.Checklist(
@@ -828,7 +1106,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
                 style={"marginBottom": "12px"},
                 inline=True,
             ),
-        
+
             # MEMBER 8: card title
             html.Div(f"#{i} • {r['town']} • {r['rooms']} rooms", style={
                 "fontSize": "28px",           # MEMBER 8: title size
@@ -846,15 +1124,17 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
             html.Div(f"Distance from your flat: {r['dist_from_home_km']} km", style={
                 "fontSize": "20px", "fontWeight": "900", "opacity": "0.88",
             }),
-            # MEMBER 8: amenity distances
-            html.Div(
-                f"Amenities nearby: Clinic ~{r['clinic_dist_m']}m • Hawker ~{r['hawker_dist_m']}m • Park ~{r['park_dist_m']}m",
-                style={"fontSize": "20px", "fontWeight": "850", "opacity": "0.85"},
-            ),
-            # MEMBER 8: MRT distance
-            html.Div(f"MRT distance (approx): {r['mrt_dist_km']:.2f} km", style={
+            # MEMBER 8: amenity distances — bullet point list
+            html.Div("Nearest Amenities within 1km:", style={
                 "fontSize": "20px", "fontWeight": "850", "opacity": "0.85",
+                "marginTop": "6px",
             }),
+            html.Ul([
+                html.Li(f"🏥 {health_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+                html.Li(f"🍜 {hawker_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+                html.Li(f"🚆 {transport_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+                html.Li(f"🌳 {nature_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+            ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
             # MEMBER 8: PropertyGuru link
             html.A("🔎 View matching listings on PropertyGuru", href=pg_url, target="_blank", style={
                 "display": "inline-block",
@@ -865,119 +1145,6 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
                 "color": "#0ea5e9",           # MEMBER 8: link colour
             }),
         ], style={**card_style, "marginTop": "14px"}))
-
-    # ── Map — MEMBER 6: customise markers and amenities ──
-    points = [
-        {"name": f"Your flat ({sell_payload['postal']})", "lat": sell_geo["lat"], "lon": sell_geo["lon"], "color": "#0ea5e9"},
-    ]
-    for r in recs:
-        points.append({
-            "name": f"Option: {r['town']} ({r['postal']})",
-            "lat": r["lat"], 
-            "lon": r["lon"], 
-            "color": "#22c55e", 
-            "price": r["buy_price"],
-            "distance": f"{r['dist_from_home_km']} km"
-        })
-
-    # Fetch real amenities from OneMap — MEMBER 6: customize themes
-    amenities = []
-    base_lat, base_lon = sell_geo["lat"], sell_geo["lon"]
-    radius_km = 2.0
-    hawker_debug_rows = []
-    for idx, r in enumerate(recs):
-        rec_lat, rec_lon = r["lat"], r["lon"]
-
-        # Healthcare (CHAS clinics, sorted by distance)
-        healthcare_amenities = get_nearby_amenities("healthcare", rec_lat, rec_lon, radius_km=2.0, limit=9999)
-        healthcare_with_dist = []
-        for amenity in healthcare_amenities:
-            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
-            healthcare_with_dist.append({**amenity, "distance_km": dist})
-        healthcare_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
-        logger.info(f"DEBUG: Found {len(healthcare_with_dist)} clinics for rec #{idx+1} at ({rec_lat}, {rec_lon})")
-        for amenity in healthcare_with_dist:
-            dist_from_home = amenity["distance_km"]
-            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
-            amenities.append({
-                "name": amenity["name"],
-                "lat": amenity["lat"],
-                "lon": amenity["lon"],
-                "kind": "healthcare",
-                "address": amenity.get("address", ""),
-                "distance": dist_str
-            })
-
-        # Hawker centres & food courts
-        hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=2.0, limit=100)
-        hawker_with_dist = []
-        for amenity in hawker_amenities:
-            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
-            if dist is not None and dist <= 2.0:
-                hawker_with_dist.append({**amenity, "distance_km": dist})
-        hawker_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
-        logger.info(f"DEBUG: Found {len(hawker_with_dist)} hawker/food courts within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
-        for amenity in hawker_with_dist:
-            dist_from_home = amenity["distance_km"]
-            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
-            amenities.append({
-                "name": amenity["name"],
-                "lat": amenity["lat"],
-                "lon": amenity["lon"],
-                "kind": "hawker / food",
-                "address": amenity.get("address", ""),
-                "distance": dist_str
-            })
-            hawker_debug_rows.append([
-                amenity["name"], amenity.get("address", ""), amenity["lat"], amenity["lon"], dist_str
-            ])
-
-        # Transport (MRT/LRT stations via OneMap search)
-        transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=2.0, limit=100)
-        transport_with_dist = []
-        for amenity in transport_amenities:
-            dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
-            if dist is not None and dist <= 2.0:
-                transport_with_dist.append({**amenity, "distance_km": dist})
-        transport_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
-        logger.info(f"DEBUG: Found {len(transport_with_dist)} transport points within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
-        for amenity in transport_with_dist:
-            dist_from_home = amenity["distance_km"]
-            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
-            amenities.append({
-                "name": amenity["name"],
-                "lat": amenity["lat"],
-                "lon": amenity["lon"],
-                "kind": "transport",
-                "address": amenity.get("address", ""),
-                "distance": dist_str
-            })
-
-        # Nature parks (API, fallback if needed)
-        park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=2.0, limit=100)
-        park_with_dist = []
-        for park in park_amenities:
-            dist = haversine_km(rec_lat, rec_lon, park["lat"], park["lon"])
-            if dist is not None and dist <= 2.0:
-                park_with_dist.append({**park, "distance_km": dist})
-        park_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
-        logger.info(f"DEBUG: Found {len(park_with_dist)} parks within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
-        for park in park_with_dist:
-            dist_from_home = park["distance_km"]
-            dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
-            amenities.append({
-                "name": park["name"],
-                "lat": park["lat"],
-                "lon": park["lon"],
-                "kind": "nature",
-                "address": park.get("address", ""),
-                "distance": dist_str
-            })
-            hawker_debug_rows.append([
-                park["name"], park.get("address", ""), park["lat"], park["lon"], dist_str
-            ])
-
-        # NOTE: We intentionally skip healthcare/parks/mrt for now to reduce API load.
 
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
@@ -1003,6 +1170,141 @@ def reset_all(n):
 
 # amanda: added this whole compare units segment for the comparison selection and panels
 # ── Compare Units — MEMBER 8: comparison logic ──
+
+@app.callback(
+    Output("results_map", "srcDoc", allow_duplicate=True),
+    Input("selected_recommendation", "data"),
+    State("recs_data", "data"),
+    State("sell_geo", "data"),
+    State("sell_payload", "data"),
+    prevent_initial_call=True,
+)
+def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload):
+    """
+    When a recommendation is focused, regenerate the map to show:
+    - Current flat (your home)
+    - Selected recommendation flat
+    - Amenities only around the selected flat
+    MEMBER 6: map updates based on focus | MEMBER 5: callback logic
+    """
+    
+    if focused_index is None or not recs_data or not sell_geo or not sell_payload:
+        return dash.no_update
+    
+    if focused_index >= len(recs_data):
+        return dash.no_update
+    
+    focused_rec = recs_data[focused_index]
+    
+    # ── Points: your flat + focused recommendation ──
+    points = [
+        {"name": f"Your flat ({sell_payload['postal']})", "lat": sell_geo["lat"], "lon": sell_geo["lon"], "color": "#0ea5e9", "rec_index": -1},
+        {
+            "name": f"Option #{focused_index + 1}: {focused_rec['town']} ({focused_rec['postal']})",
+            "lat": focused_rec["lat"],
+            "lon": focused_rec["lon"],
+            "color": "#22c55e",
+            "price": focused_rec["buy_price"],
+            "distance": f"{focused_rec['dist_from_home_km']} km",
+            "rec_index": 0,  # Only one recommendation shown when focused
+        }
+    ]
+    
+    # ── Amenities: only around focused flat ──
+    amenities = []
+    rec_lat, rec_lon = focused_rec["lat"], focused_rec["lon"]
+    
+    logger.info(f"[Focus] Generating amenities for rec #{focused_index + 1} at ({rec_lat}, {rec_lon})")
+    
+    # Healthcare (CHAS clinics)
+    healthcare_amenities = get_nearby_amenities("healthcare", rec_lat, rec_lon, radius_km=1.0, limit=9999)
+    healthcare_with_dist = []
+    for amenity in healthcare_amenities:
+        dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+        healthcare_with_dist.append({**amenity, "distance_km": dist})
+    healthcare_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+    for amenity in healthcare_with_dist:
+        dist_from_home = amenity["distance_km"]
+        dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+        amenities.append({
+            "name": amenity["name"],
+            "lat": amenity["lat"],
+            "lon": amenity["lon"],
+            "kind": "healthcare",
+            "address": amenity.get("address", ""),
+            "distance": dist_str,
+            "rec_index": 0,  # Focused flat index
+        })
+    
+    # Hawker centres & food courts
+    hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=1.0, limit=100)
+    hawker_with_dist = []
+    for amenity in hawker_amenities:
+        dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+        if dist is not None and dist <= 1.0:
+            hawker_with_dist.append({**amenity, "distance_km": dist})
+    hawker_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+    for amenity in hawker_with_dist:
+        dist_from_home = amenity["distance_km"]
+        dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+        amenities.append({
+            "name": amenity["name"],
+            "lat": amenity["lat"],
+            "lon": amenity["lon"],
+            "kind": "hawker / food",
+            "address": amenity.get("address", ""),
+            "distance": dist_str,
+            "rec_index": 0,  # Focused flat index
+        })
+    
+    # Transport (MRT/LRT)
+    transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=1.0, limit=100)
+    transport_with_dist = []
+    for amenity in transport_amenities:
+        dist = haversine_km(rec_lat, rec_lon, amenity["lat"], amenity["lon"])
+        if dist is not None and dist <= 1.0:
+            transport_with_dist.append({**amenity, "distance_km": dist})
+    transport_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+    for amenity in transport_with_dist:
+        dist_from_home = amenity["distance_km"]
+        dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+        amenities.append({
+            "name": amenity["name"],
+            "lat": amenity["lat"],
+            "lon": amenity["lon"],
+            "kind": "transport",
+            "address": amenity.get("address", ""),
+            "distance": dist_str,
+            "rec_index": 0,  # Focused flat index
+        })
+    
+    # Nature parks
+    park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=1.0, limit=100)
+    park_with_dist = []
+    for park in park_amenities:
+        dist = haversine_km(rec_lat, rec_lon, park["lat"], park["lon"])
+        if dist is not None and dist <= 1.0:
+            park_with_dist.append({**park, "distance_km": dist})
+    park_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+    for park in park_with_dist:
+        dist_from_home = park["distance_km"]
+        dist_str = f"{dist_from_home:.2f} km" if dist_from_home is not None else "N/A"
+        amenities.append({
+            "name": park["name"],
+            "lat": park["lat"],
+            "lon": park["lon"],
+            "kind": "nature",
+            "address": park.get("address", ""),
+            "distance": dist_str,
+            "rec_index": 0,  # Focused flat index
+        })
+    
+    logger.info(f"[Focus] Found {len(amenities)} total amenities for focused flat")
+    
+    # Generate and return the updated map
+    map_doc = leaflet_map_html(rec_lat, rec_lon, points, amenities, zoom=14)
+    return map_doc
+
 
 @app.callback(
     Output("selected_units", "data"),
@@ -1094,9 +1396,10 @@ def render_comparison_modal(is_open, selected_indices, recs_data):
                 ("Buy Price (est.)", "buy_price", "min"),
                 ("Cash Unlocked (est.)", "cash_unlocked", "max"),
                 ("Distance from Your Flat", "dist_from_home_km", "min"),
-                ("Clinic Nearby", "clinic_dist_m", "min"),
-                ("Hawker Nearby", "hawker_dist_m", "min"),
-                ("Park Nearby", "park_dist_m", "min"),
+                ("Nearest Healthcare", "nearest_healthcare_name", None),
+                ("Nearest Hawker", "nearest_hawker_name", None),
+                ("Nearest Transport", "nearest_transport_name", None),
+                ("Nearest Park", "nearest_nature_name", None),
                 ("MRT Distance (approx)", "mrt_dist_km", "min"),
             ]
 
@@ -1122,16 +1425,31 @@ def render_comparison_modal(is_open, selected_indices, recs_data):
                     formatter = lambda x: f"${x:,.0f}"
                 elif metric_key == "dist_from_home_km":
                     formatter = lambda x: f"{x} km"
-                elif metric_key in ["clinic_dist_m", "hawker_dist_m", "park_dist_m"]:
-                    formatter = lambda x: f"~{x}m"
                 elif metric_key == "mrt_dist_km":
                     formatter = lambda x: f"{x:.2f} km"
+                elif metric_key in ["nearest_healthcare_name", "nearest_hawker_name", "nearest_transport_name", "nearest_nature_name"]:
+                    # Extract name and distance from the amenity object
+                    def amenity_formatter(x):
+                        if x and isinstance(x, dict) and "name" in x and "dist_m" in x:
+                            return f"{x['name']} (~{x['dist_m']}m)"
+                        return "N/A"
+                    formatter = amenity_formatter
                 else:
                     formatter = str
 
                 row = [html.Td(metric_label, style={"fontWeight": "700", "padding": "10px", "borderRight": "1px solid #e2e8f0"})]
                 for idx, rec in enumerate(selected_recs):
-                    value = rec.get(metric_key, "N/A")
+                    # Special handling for amenity name fields
+                    if metric_key == "nearest_healthcare_name":
+                        value = rec.get("nearest_healthcare", "N/A")
+                    elif metric_key == "nearest_hawker_name":
+                        value = rec.get("nearest_hawker", "N/A")
+                    elif metric_key == "nearest_transport_name":
+                        value = rec.get("nearest_transport", "N/A")
+                    elif metric_key == "nearest_nature_name":
+                        value = rec.get("nearest_nature", "N/A")
+                    else:
+                        value = rec.get(metric_key, "N/A")
                     display = formatter(value) if value != "N/A" else "N/A"
                     cell_style = {"padding": "10px", "textAlign": "center"}
                     perf = metric_perf.get(metric_key)
