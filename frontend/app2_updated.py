@@ -816,12 +816,6 @@ def estimate_price(n, sell_payload):
             "fontSize": "52px",           # MEMBER 7: main price font size
             "fontWeight": "950",
         }),
-        html.Div(f"Range: ${pred['low']:,.0f} – ${pred['high']:,.0f}", style={
-            "fontSize": "22px", "fontWeight": "900", "opacity": "0.85",
-        }),
-        html.Div(f"Town median (rough): ${pred.get('median_town', int(pred['price'] * 0.98)):,.0f}", style={
-            "fontSize": "22px", "fontWeight": "900", "opacity": "0.80",
-        }),
     ], style={"marginTop": "14px"})
     return pred, box
 
