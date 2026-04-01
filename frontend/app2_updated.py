@@ -486,8 +486,8 @@ def step_1_estimate():
             ),
             html.Div(style={"height": "14px"}),
 
-            html.Div("Floor area (sqm) (optional)", style=label_style),
-            dcc.Input(id="sell_area", type="number", value=90, style=input_style_big),
+            html.Div("Floor area (sqm)", style=label_style),
+            dcc.Input(id="sell_area", type="number", placeholder="e.g. 93", style=input_style_big),
             html.Div(style={"height": "16px"}),
 
             html.Button("Estimate price", id="btn_estimate", n_clicks=0, style=btn_primary),
@@ -761,6 +761,10 @@ def autosave_step1(postal, flat_type, area):
     
     if not is_valid_sg_postal(postal):
         msg = html.Div("⚠️ Invalid postal code. Must be 6 digits (e.g., 560123).", style=banner_warn)
+        return payload, None, msg
+    
+    if not area:
+        msg = html.Div("⚠️ Please enter your floor area.", style=banner_warn)
         return payload, None, msg
     
     # Try to geocode
