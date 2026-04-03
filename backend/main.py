@@ -314,12 +314,12 @@ def predict_sell(body: SellRequest):
             floor_area_sqm=floor_area,
             sold_year=now.year,
             sold_month=now.month,
-            listing_premium=1.0,
+            listing_premium=1.10,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    price = int(result["transacted_price"])
+    price = int(result["asking_price"])
     return SellResponse(
         price=price,
         low=int(price * 0.93),
