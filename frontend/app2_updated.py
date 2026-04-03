@@ -57,6 +57,8 @@ def print_healthcare_themes(onemap_token):
         print("[Done] Use the QUERYNAME(s) above in your amenity fetch logic.")
     except Exception as e:
         print(f"[Error] Could not fetch OneMap themes: {e}")
+def _fetch_onemap_healthcare(lat, lon, radius_km=1.0, limit=9999):
+    return get_nearby_amenities("healthcare", lat, lon, radius_km=radius_km, limit=limit)
 
 from dash import Dash, html, dcc, Input, Output, State
 import dash
@@ -102,8 +104,29 @@ from services.api import (
 from services.mock_backend import mock_predict_price, mock_recommendations
 from utils.helpers import build_propertyguru_url, weights_from_sliders, haversine_km
 
+try:
+    from frontend.lbs_required_patch import (
+        STEP_META,
+        lbs_stores,
+        step_4_lbs,
+        register_lbs_callbacks,
+        build_lbs_result_card,
+        validate_lbs_for_navigation,
+    )
+except ImportError:
+    from lbs_required_patch import (
+        STEP_META,
+        lbs_stores,
+        step_4_lbs,
+        register_lbs_callbacks,
+        build_lbs_result_card,
+        validate_lbs_for_navigation,
+    )
+
 app = Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
+
+register_lbs_callbacks(app, banner_ok=banner_ok, banner_warn=banner_warn, card_style=card_style)
 
 # ============================================================================
 # BACKEND / API UTILITIES — imported from services/api.py
@@ -402,7 +425,7 @@ def step_indicator(step):
     The 1 → 2 → 3 → 4 progress bar at the top of every page.
     MEMBER 7: adjust circle size, colours, connector style, label fonts.
     """
-    steps = [("1", "Price estimate"), ("2", "What matters"), ("3", "Your limits"), ("4", "Results")]
+    steps = STEP_META
     chips = []
     for i, (num, name) in enumerate(steps, start=1):
         active = (i == step)
@@ -429,7 +452,7 @@ def step_indicator(step):
                 }),
             ], style={"display": "flex", "flexDirection": "column", "alignItems": "center"})
         )
-        if i < 4:
+        if i < len(steps):
             # MEMBER 7: connector line between steps
             chips.append(html.Div(style={
                 "height": "4px", "flex": "1",
@@ -443,14 +466,14 @@ def step_indicator(step):
 
 def nav_row(step):
     """Back/Next navigation buttons. MEMBER 7: adjust labels and disabled appearance."""
-    labels = {1: "Next →", 2: "Next →", 3: "See results →", 4: "Back"}
+    labels = {1: "Next →", 2: "Next →", 3: "Next →", 4: "See results →", 5: "Back"}
     next_label = labels.get(step, "Next →")
 
     back_style = dict(btn_back)
     if step == 1:
         back_style.update({"opacity": "0.45", "cursor": "not-allowed", "boxShadow": "none"})
 
-    compare_style = {**btn_primary, "marginLeft": "10px", "backgroundColor": "#8b5cf6"} if step == 4 else {"display": "none"}
+    compare_style = {**btn_primary, "marginLeft": "10px", "backgroundColor": "#8b5cf6"} if step == 5 else {"display": "none"}
 
     return html.Div([
         html.Button("← Back", id="btn_back", n_clicks=0, style=back_style, disabled=(step == 1)),
@@ -570,10 +593,16 @@ def step_3_limits():
 
 # ── STEP 4: Results ───────────────────────────────────────────────────────
 # MEMBER 8: result cards + layout   |   MEMBER 6: map
+def step_4_lbs_page():
+    return step_4_lbs(
+        card_style= card_style,
+        label_style= label_style,
+        input_style_big= input_style_big,
+    )
 
-def step_4_results():
+def step_5_results():
     return html.Div([
-        html.Div("Step 4: Results", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("Step 5: Results", style={"fontSize": "36px", "fontWeight": "950"}),
         html.Div([
             # Left column: results — MEMBER 8: owns this section
             # amanda: 2 html.button() added
@@ -636,7 +665,9 @@ app.layout = html.Div([
     dcc.Store(id="selected_units", data=[]),
     dcc.Store(id="modal_open", data=False),
     dcc.Store(id="selected_recommendation", data=None),  # MEMBER 5: track focused flat (index or None)
-
+    dcc.Store(id="results_lbs_result"),
+    *lbs_stores(),
+    
     html.Div([
         html.Div([
             # MEMBER 7: title emoji and text
@@ -703,7 +734,7 @@ app.layout = html.Div([
 )
 def render_step(step):
     step = int(step or 1)
-    pages = {1: step_1_estimate, 2: step_2_preferences, 3: step_3_limits, 4: step_4_results}
+    pages = {1: step_1_estimate, 2: step_2_preferences, 3: step_3_limits, 4: step_4_lbs_page, 5: step_5_results,}
     return pages[step](), nav_row(step), step_indicator(step)
 
 
@@ -714,13 +745,16 @@ def render_step(step):
     Input("btn_next", "n_clicks"),
     Input("btn_back", "n_clicks"),
     State("step", "data"),
+    State("lbs_result", "data"),
     prevent_initial_call=True,
 )
-def go_next_back(n_next, n_back, step):
+def go_next_back(n_next, n_back, step, lbs_result):
     trig = dash.callback_context.triggered_id
     step = int(step or 1)
     if trig == "btn_next":
-        return min(step + 1, 4)
+        if not validate_lbs_for_navigation(step, lbs_result):
+            return step
+        return min(step + 1, 5)
     if trig == "btn_back":
         return max(step - 1, 1)
     return step
@@ -858,24 +892,28 @@ def save_limits(budget, min_rooms, towns):
     Output("results_list", "children"),
     Output("results_map", "srcDoc"),
     Output("recs_data", "data"),
+    Output("results_lbs_result", "data"),
     Input("btn_run_all", "n_clicks"),
     State("sell_payload", "data"),
     State("sell_geo", "data"),
     State("sell_pred", "data"),
     State("prefs_weights", "data"),
     State("constraints", "data"),
+    State("lbs_result", "data"),
     prevent_initial_call=True,
 )
-def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
+def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
     # Validation
+    if not lbs_result or not lbs_result.get("ok"):
+        return html.Div("Please complete Step 4: LBS details", style=banner_warn), dash.no_update, None, None
     if not sell_payload or not sell_payload.get("postal"):
-        return html.Div("Please go back to Step 1 and enter your postal code.", style=banner_warn), dash.no_update, None
+        return html.Div("Please go back to Step 1 and enter your postal code.", style=banner_warn), dash.no_update, None, None
     if not sell_geo:
-        return html.Div("We could not locate your flat. Please check postal code in Step 1.", style=banner_warn), dash.no_update, None
+        return html.Div("We could not locate your flat. Please check postal code in Step 1.", style=banner_warn), dash.no_update, None, None
     if not prefs_w:
-        return html.Div("Please complete Step 2.", style=banner_warn), dash.no_update, None
+        return html.Div("Please complete Step 2.", style=banner_warn), dash.no_update, None, None
     if not constraints:
-        return html.Div("Please complete Step 3.", style=banner_warn), dash.no_update, None
+        return html.Div("Please complete Step 3.", style=banner_warn), dash.no_update, None, None
 
     if not sell_pred:
         sell_pred = mock_predict_price(sell_payload["postal"], sell_payload["flat_type"], sell_payload.get("floor_area_sqm"))
@@ -1143,10 +1181,11 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
                 "color": "#0ea5e9",           # MEMBER 8: link colour
             }),
         ], style={**card_style, "marginTop": "14px"}))
-
+    if lbs_result and lbs_result.get("ok"):
+        cards.append(build_lbs_result_card(lbs_result, card_style))
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
-    return html.Div([*cards]), map_doc, recs
+    return html.Div([*cards]), map_doc, recs, lbs_result
 
 
 # ── Reset ──
@@ -1159,11 +1198,14 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints):
     Output("prefs_weights", "data", allow_duplicate=True),
     Output("constraints", "data", allow_duplicate=True),
     Output("recs_data", "data", allow_duplicate=True),
+    Output("lbs_inputs", "data", allow_duplicate=True),
+    Output("lbs_result", "data", allow_duplicate=True),
+    Output("results_lbs_result", "data", allow_duplicate=True),
     Input("btn_reset", "n_clicks"),
     prevent_initial_call=True,
 )
 def reset_all(n):
-    return 1, None, None, None, None, None, None
+    return 1, None, None, None, None, None, None, None, None, None
 
 
 # amanda: added this whole compare units segment for the comparison selection and panels
@@ -1311,6 +1353,8 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
 )
 def update_selected_units(checkbox_values):
     """Track which units are selected for comparison"""
+    if not checkbox_values:
+        return []
     # checkbox_values is a list of lists, where each inner list contains the selected values
     selected_indices = []
     for values in checkbox_values:
@@ -1329,23 +1373,20 @@ def update_selected_units(checkbox_values):
     prevent_initial_call=True,
 )
 def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indices):
-    """Control comparison modal open/close state"""
     trig = dash.callback_context.triggered_id
 
-    if trig == "step" or trig == "recs_data":
+    # Always close modal when navigating steps or regenerating results
+    if trig in ["step", "recs_data"]:
         return False
 
     if trig == "btn_close_modal":
         return False
 
     if trig == "btn_compare":
-        # open only with at least one selected unit
-        if not selected_indices:
-            return False
-        return True
+        # Only open if user has selected at least one unit
+        return bool(selected_indices)
 
-    return False
-
+    return dash.no_update
 
 @app.callback(
     Output("comparison_modal", "style"),
@@ -1353,126 +1394,27 @@ def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indic
     Input("modal_open", "data"),
     State("selected_units", "data"),
     State("recs_data", "data"),
+    State("results_lbs_result", "data"),
     prevent_initial_call=True,
 )
-def render_comparison_modal(is_open, selected_indices, recs_data):
-    """Render comparison modal content"""
-    
-    if not is_open:
-        # Keep modal hidden
-        return {
-            "display": "none",
-            "position": "fixed",
-            "top": "0",
-            "left": "0",
-            "width": "100%",
-            "height": "100%",
-            "backgroundColor": "rgba(0, 0, 0, 0.5)",
-            "zIndex": "1000",
-            "justifyContent": "center",
-            "alignItems": "center",
-            "overflow": "auto",
-        }, ""
-    
-    # Modal is open - generate content
-    if not selected_indices or not recs_data:
-        table_content = html.Div("Please select at least one unit to compare.", style={"fontSize": "16px", "color": "#ef4444"})
-    else:
-        # Build comparison table
-        selected_recs = [recs_data[i] for i in selected_indices if i < len(recs_data)]
-        
-        if not selected_recs:
-            table_content = html.Div("No units selected. Please try again.", style={"fontSize": "16px", "color": "#ef4444"})
-        else:
-            # Table header
-            headers = ["Metric", *[f"Option #{i+1}" for i in selected_indices]]
-            
-            # Table rows with best/worst colouring
-            metrics = [
-                ("Town", "town", None),
-                ("Rooms", "rooms", None),
-                ("Buy Price (est.)", "buy_price", "min"),
-                ("Cash Unlocked (est.)", "cash_unlocked", "max"),
-                ("Distance from Your Flat", "dist_from_home_km", "min"),
-                ("Nearest Healthcare", "nearest_healthcare_name", None),
-                ("Nearest Hawker", "nearest_hawker_name", None),
-                ("Nearest Transport", "nearest_transport_name", None),
-                ("Nearest Park", "nearest_nature_name", None),
-                ("MRT Distance (approx)", "mrt_dist_km", "min"),
-            ]
+def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_result):
+    """Render comparison modal content."""
 
-            # Pre-calc best and worst indices per metric
-            metric_perf = {}
-            for metric_label, metric_key, prefer in metrics:
-                values = [selected_recs[i].get(metric_key) for i in range(len(selected_recs))]
-                if prefer and all([isinstance(v, (int, float)) for v in values]):
-                    if prefer == "max":
-                        best_idx = max(range(len(values)), key=lambda j: values[j])
-                        worst_idx = min(range(len(values)), key=lambda j: values[j])
-                    else:
-                        best_idx = min(range(len(values)), key=lambda j: values[j])
-                        worst_idx = max(range(len(values)), key=lambda j: values[j])
-                    metric_perf[metric_key] = {"best": best_idx, "worst": worst_idx}
-                else:
-                    metric_perf[metric_key] = None
+    modal_style_hidden = {
+        "display": "none",
+        "position": "fixed",
+        "top": "0",
+        "left": "0",
+        "width": "100%",
+        "height": "100%",
+        "backgroundColor": "rgba(0, 0, 0, 0.5)",
+        "zIndex": "1000",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "overflow": "auto",
+    }
 
-            rows = []
-            for metric_label, metric_key, prefer in metrics:
-                format_fn = (lambda x: x) if not prefer else (lambda x: x)
-                if metric_key == "buy_price" or metric_key == "cash_unlocked":
-                    formatter = lambda x: f"${x:,.0f}"
-                elif metric_key == "dist_from_home_km":
-                    formatter = lambda x: f"{x} km"
-                elif metric_key == "mrt_dist_km":
-                    formatter = lambda x: f"{x:.2f} km"
-                elif metric_key in ["nearest_healthcare_name", "nearest_hawker_name", "nearest_transport_name", "nearest_nature_name"]:
-                    # Extract name and distance from the amenity object
-                    def amenity_formatter(x):
-                        if x and isinstance(x, dict) and "name" in x and "dist_m" in x:
-                            return f"{x['name']} (~{x['dist_m']}m)"
-                        return "N/A"
-                    formatter = amenity_formatter
-                else:
-                    formatter = str
-
-                row = [html.Td(metric_label, style={"fontWeight": "700", "padding": "10px", "borderRight": "1px solid #e2e8f0"})]
-                for idx, rec in enumerate(selected_recs):
-                    # Special handling for amenity name fields
-                    if metric_key == "nearest_healthcare_name":
-                        value = rec.get("nearest_healthcare", "N/A")
-                    elif metric_key == "nearest_hawker_name":
-                        value = rec.get("nearest_hawker", "N/A")
-                    elif metric_key == "nearest_transport_name":
-                        value = rec.get("nearest_transport", "N/A")
-                    elif metric_key == "nearest_nature_name":
-                        value = rec.get("nearest_nature", "N/A")
-                    else:
-                        value = rec.get(metric_key, "N/A")
-                    display = formatter(value) if value != "N/A" else "N/A"
-                    cell_style = {"padding": "10px", "textAlign": "center"}
-                    perf = metric_perf.get(metric_key)
-                    if perf and value != "N/A":
-                        if idx == perf["best"]:
-                            cell_style.update({"backgroundColor": "#dcfce7", "color": "#166534", "fontWeight": "700"})
-                        elif idx == perf["worst"]:
-                            cell_style.update({"backgroundColor": "#fee2e2", "color": "#991b1b"})
-                    row.append(html.Td(display, style=cell_style))
-                rows.append(html.Tr(row))
-            
-            table_content = html.Table(
-                [
-                    html.Thead(html.Tr([html.Th(h, style={"padding": "12px", "textAlign": "center", "fontWeight": "700", "borderBottom": "2px solid #0ea5e9"}) for h in headers])),
-                    html.Tbody(rows),
-                ],
-                style={
-                    "width": "100%",
-                    "borderCollapse": "collapse",
-                    "marginTop": "20px",
-                    "fontSize": "16px",
-                }
-            )
-    
-    return {
+    modal_style_open = {
         "display": "flex",
         "position": "fixed",
         "top": "0",
@@ -1484,7 +1426,338 @@ def render_comparison_modal(is_open, selected_indices, recs_data):
         "justifyContent": "center",
         "alignItems": "center",
         "overflow": "auto",
-    }, table_content
+    }
+
+    if not is_open:
+        return modal_style_hidden, dash.no_update
+
+    try:
+        if not selected_indices:
+            return modal_style_open, html.Div(
+                "Please select at least one unit to compare.",
+                style={"fontSize": "16px", "color": "#ef4444"},
+            )
+
+        # normalize selected indices
+        normalized_indices = []
+        for raw_idx in selected_indices:
+            try:
+                idx = int(raw_idx)
+            except (TypeError, ValueError):
+                continue
+            if idx not in normalized_indices:
+                normalized_indices.append(idx)
+
+        selected_items = []
+        for idx in normalized_indices:
+            if recs_data and 0 <= idx < len(recs_data):
+                rec = recs_data[idx]
+                selected_items.append({
+                    "label": f"Option #{idx + 1}",
+                    "data": rec,
+                })
+
+        if not selected_items:
+            return modal_style_open, html.Div(
+                "No valid units selected. Please try again.",
+                style={"fontSize": "16px", "color": "#ef4444"},
+            )
+
+        print("COMPARE MODAL results_lbs_result:", results_lbs_result)
+
+        if not results_lbs_result or not isinstance(results_lbs_result, dict) or not results_lbs_result.get("ok"):
+            return modal_style_open, html.Div(
+                "LBS result is missing from the Results snapshot. Please rerun results.",
+                style={"fontSize": "16px", "color": "#ef4444"},
+            )
+
+        net_lbs_value = results_lbs_result.get("net_lbs")
+
+        if net_lbs_value is None:
+            return modal_style_open, html.Div(
+                "LBS value could not be read from the Results snapshot. Please rerun results.",
+                style={"fontSize": "16px", "color": "#ef4444"},
+            )
+
+        # ----------------------------
+        # detailed comparison table
+        # selected flats only
+        # ----------------------------
+        headers = ["Metric", *[item["label"] for item in selected_items]]
+
+        metrics = [
+            ("Town", "town", None),
+            ("Rooms", "rooms", None),
+            ("Buy Price (est.)", "buy_price", "min"),
+            ("Cash Unlocked (est.)", "cash_unlocked", "max"),
+            ("Distance from Your Flat", "dist_from_home_km", "min"),
+            ("Nearest Healthcare", "nearest_healthcare_name", None),
+            ("Nearest Hawker", "nearest_hawker_name", None),
+            ("Nearest Transport", "nearest_transport_name", None),
+            ("Nearest Park", "nearest_nature_name", None),
+            ("MRT Distance (approx)", "mrt_dist_km", "min"),
+        ]
+
+        def _metric_value(rec, metric_key):
+            if metric_key == "nearest_healthcare_name":
+                return rec.get("nearest_healthcare", None)
+            if metric_key == "nearest_hawker_name":
+                return rec.get("nearest_hawker", None)
+            if metric_key == "nearest_transport_name":
+                return rec.get("nearest_transport", None)
+            if metric_key == "nearest_nature_name":
+                return rec.get("nearest_nature", None)
+            return rec.get(metric_key, None)
+
+        def format_value(metric_key, value):
+            if metric_key in ["buy_price", "cash_unlocked"]:
+                return f"${value:,.0f}" if isinstance(value, (int, float)) else "N/A"
+            if metric_key in ["dist_from_home_km", "mrt_dist_km"]:
+                return f"{value:.2f} km" if isinstance(value, (int, float)) else "N/A"
+            if metric_key in [
+                "nearest_healthcare_name",
+                "nearest_hawker_name",
+                "nearest_transport_name",
+                "nearest_nature_name",
+            ]:
+                if value and isinstance(value, dict) and "name" in value and "dist_m" in value:
+                    return f"{value['name']} (~{value['dist_m']}m)"
+                return "N/A"
+            return str(value) if value not in (None, "") else "N/A"
+
+        metric_perf = {}
+        for _, metric_key, prefer in metrics:
+            values = [_metric_value(item["data"], metric_key) for item in selected_items]
+            numeric_pairs = [(j, v) for j, v in enumerate(values) if isinstance(v, (int, float))]
+            if prefer and numeric_pairs:
+                if prefer == "max":
+                    best_idx = max(numeric_pairs, key=lambda pair: pair[1])[0]
+                    worst_idx = min(numeric_pairs, key=lambda pair: pair[1])[0]
+                else:
+                    best_idx = min(numeric_pairs, key=lambda pair: pair[1])[0]
+                    worst_idx = max(numeric_pairs, key=lambda pair: pair[1])[0]
+                metric_perf[metric_key] = {"best": best_idx, "worst": worst_idx}
+            else:
+                metric_perf[metric_key] = None
+
+        rows = []
+        for metric_label, metric_key, _ in metrics:
+            row = [
+                html.Td(
+                    metric_label,
+                    style={
+                        "fontWeight": "700",
+                        "padding": "10px",
+                        "borderRight": "1px solid #e2e8f0",
+                    },
+                )
+            ]
+
+            for idx, item in enumerate(selected_items):
+                value = _metric_value(item["data"], metric_key)
+                display = format_value(metric_key, value)
+                cell_style = {"padding": "10px", "textAlign": "center"}
+
+                perf = metric_perf.get(metric_key)
+                if perf and isinstance(value, (int, float)):
+                    if idx == perf["best"]:
+                        cell_style.update({
+                            "backgroundColor": "#dcfce7",
+                            "color": "#166534",
+                            "fontWeight": "700",
+                        })
+                    elif idx == perf["worst"]:
+                        cell_style.update({
+                            "backgroundColor": "#fee2e2",
+                            "color": "#991b1b",
+                        })
+
+                row.append(html.Td(display, style=cell_style))
+
+            rows.append(html.Tr(row))
+
+        detailed_table = html.Table(
+            [
+                html.Thead(
+                    html.Tr(
+                        [
+                            html.Th(
+                                h,
+                                style={
+                                    "padding": "12px",
+                                    "textAlign": "center",
+                                    "fontWeight": "700",
+                                    "borderBottom": "2px solid #0ea5e9",
+                                },
+                            )
+                            for h in headers
+                        ]
+                    )
+                ),
+                html.Tbody(rows),
+            ],
+            style={
+                "width": "100%",
+                "borderCollapse": "collapse",
+                "marginTop": "20px",
+                "fontSize": "16px",
+            },
+        )
+
+        # ----------------------------
+        # summary section
+        # selected flats + LBS stay
+        # ----------------------------
+        summary_options = []
+
+        for item in selected_items:
+            rec = item["data"]
+            summary_options.append({
+                "label": item["label"],
+                "immediate_cash": rec.get("cash_unlocked"),
+                "change_of_home": "Yes",
+                "distance_from_current_flat": rec.get("dist_from_home_km"),
+            })
+
+        summary_options.append({
+            "label": "LBS (Stay)",
+            "immediate_cash": float(net_lbs_value or 0),
+            "change_of_home": "No",
+            "distance_from_current_flat": 0.0,
+        })
+
+        def fmt_money(x):
+            return f"${x:,.0f}" if isinstance(x, (int, float)) else "N/A"
+
+        def fmt_km(x):
+            return f"{x:.2f} km" if isinstance(x, (int, float)) else "N/A"
+
+        numeric_cash_values = [
+            opt["immediate_cash"]
+            for opt in summary_options
+            if isinstance(opt["immediate_cash"], (int, float))
+        ]
+        max_cash = max(numeric_cash_values) if numeric_cash_values else None
+
+        summary_rows = [
+            html.Tr(
+                [html.Td("Immediate Cash", style={"fontWeight": "700", "padding": "10px"})] +
+                [
+                    html.Td(
+                        fmt_money(opt["immediate_cash"]),
+                        style={
+                            "padding": "10px",
+                            "textAlign": "center",
+                            "backgroundColor": "#dcfce7" if opt["immediate_cash"] == max_cash else "white",
+                            "fontWeight": "700" if opt["immediate_cash"] == max_cash else "400",
+                            "color": "#166534" if opt["immediate_cash"] == max_cash else "#111827",
+                        }
+                    )
+                    for opt in summary_options
+                ]
+            ),
+            html.Tr(
+                [html.Td("Change of Home", style={"fontWeight": "700", "padding": "10px"})] +
+                [
+                    html.Td(opt["change_of_home"], style={"padding": "10px", "textAlign": "center"})
+                    for opt in summary_options
+                ]
+            ),
+            html.Tr(
+                [html.Td("Distance from Current Flat", style={"fontWeight": "700", "padding": "10px"})] +
+                [
+                    html.Td(
+                        fmt_km(opt["distance_from_current_flat"]),
+                        style={"padding": "10px", "textAlign": "center"}
+                    )
+                    for opt in summary_options
+                ]
+            ),
+        ]
+
+        summary_table = html.Div([
+            html.Div("At-a-Glance Summary", style={"fontSize": "22px", "fontWeight": "900", "marginBottom": "10px"}),
+            html.Table(
+                [
+                    html.Thead(
+                        html.Tr(
+                            [html.Th("Outcome", style={"padding": "10px", "textAlign": "left"})] +
+                            [html.Th(opt["label"], style={"padding": "10px", "textAlign": "center"}) for opt in summary_options]
+                        )
+                    ),
+                    html.Tbody(summary_rows),
+                ],
+                style={
+                    "width": "100%",
+                    "borderCollapse": "collapse",
+                    "fontSize": "15px",
+                    "border": "1px solid #d1d5db",
+                    "borderRadius": "10px",
+                    "overflow": "hidden",
+                    "backgroundColor": "white",
+                },
+            ),
+        ], style={
+            "flex": "1.4",
+            "padding": "16px",
+            "border": "1px solid #d1d5db",
+            "borderRadius": "14px",
+            "backgroundColor": "white",
+        })
+
+        best_cash_option = max(
+            summary_options,
+            key=lambda x: x["immediate_cash"] if isinstance(x["immediate_cash"], (int, float)) else -1
+        )
+
+        insight_box = html.Div([
+            html.Div("Recommendation Insight", style={"fontSize": "22px", "fontWeight": "900", "marginBottom": "10px"}),
+            html.Ul([
+                html.Li(
+                    f"{best_cash_option['label']} provides the highest immediate cash unlocked.",
+                    style={"marginBottom": "10px", "fontSize": "16px"}
+                ),
+                html.Li(
+                    "Use the detailed comparison above to weigh amenities and distance against cash outcomes.",
+                    style={"fontSize": "16px"}
+                ),
+            ], style={"paddingLeft": "20px", "margin": "0"}),
+        ], style={
+            "flex": "1",
+            "padding": "16px",
+            "border": "1px solid #d1d5db",
+            "borderRadius": "14px",
+            "backgroundColor": "white",
+        })
+
+        summary_section = html.Div(
+            [summary_table, insight_box],
+            style={
+                "display": "flex",
+                "gap": "16px",
+                "marginTop": "24px",
+                "alignItems": "stretch",
+            },
+        )
+
+        logger.info(
+            "[Compare Modal FINAL] selected=%s | lbs_net=%s | headers=%s",
+            normalized_indices,
+            net_lbs_value,
+            headers,
+        )
+
+        return modal_style_open, html.Div([
+            detailed_table,
+            summary_section,
+        ])
+
+    except Exception as exc:
+        logger.exception("[Compare Modal] Crashed while rendering comparison table")
+        return modal_style_open, html.Div(
+            f"Comparison table error: {exc}",
+            style={"fontSize": "16px", "color": "#ef4444"},
+        )
 
 
 # ============================================================================
