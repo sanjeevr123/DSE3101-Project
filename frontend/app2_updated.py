@@ -191,10 +191,11 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       background: rgba(255,255,255,0.92); padding: 10px 12px;
       border: 1px solid rgba(15,23,42,0.15); border-radius: 12px;
       font-family: system-ui; font-size: 14px; font-weight: 800; color: #0f172a;
-            min-width: 220px;
     }}
+    .legend-columns {{ display: flex; gap: 16px; align-items: flex-start; }}
+    .legend-col {{ display: flex; flex-direction: column; }}
     .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }}
-    .amenity-icon {{ font-size: 24px; background: none; border: none; }}
+    .amenity-icon {{ font-size: 18px; background: none; border: none; }}
         .legend-title {{ font-size: 15px; font-weight: 900; margin-bottom: 8px; }}
         .legend-note {{ font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 8px; }}
         .toggle-row {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }}
@@ -210,26 +211,31 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
   <div id="map"></div>
   <!-- MEMBER 6: update legend labels and dot colours -->
     <div class="legend" id="layer-controls">
-        <div class="legend-title">Map Layers</div>
-        <div class="legend-note">Toggle layers with switches</div>
-        <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat</div>
-        <div id="recommendation-toggles" style="margin-bottom:8px;"></div>
-        <div style="margin-bottom:8px; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size:13px; font-weight:900;">Amenities</div>
-        <div class="toggle-row">
-            <span>🏥 Healthcare</span>
-            <label class="switch"><input type="checkbox" data-kind="healthcare" checked><span class="slider"></span></label>
-        </div>
-        <div class="toggle-row">
-            <span>🚇 Transport</span>
-            <label class="switch"><input type="checkbox" data-kind="transport" checked><span class="slider"></span></label>
-        </div>
-        <div class="toggle-row">
-            <span>🍜 Hawker / Food</span>
-            <label class="switch"><input type="checkbox" data-kind="hawker / food" checked><span class="slider"></span></label>
-        </div>
-        <div class="toggle-row">
-            <span>🌳 Nature</span>
-            <label class="switch"><input type="checkbox" data-kind="nature" checked><span class="slider"></span></label>
+        <div class="legend-columns">
+          <div class="legend-col">
+            <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat</div>
+            <div id="recommendation-toggles"></div>
+          </div>
+          <div style="border-left: 1px solid #e2e8f0; margin: 0 4px;"></div>
+          <div class="legend-col">
+            <div style="margin-bottom:8px; font-size:13px; font-weight:900;">Amenities</div>
+            <div class="toggle-row">
+                <span>🏥 Healthcare</span>
+                <label class="switch"><input type="checkbox" data-kind="healthcare" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <span>🚇 MRT</span>
+                <label class="switch"><input type="checkbox" data-kind="transport" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <span>🍜 Hawker / Food</span>
+                <label class="switch"><input type="checkbox" data-kind="hawker / food" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <span>🌳 Parks</span>
+                <label class="switch"><input type="checkbox" data-kind="nature" checked><span class="slider"></span></label>
+            </div>
+          </div>
         </div>
   </div>
   <script>
@@ -309,10 +315,10 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       const amenityIcon = L.divIcon({{
         html: iconHtml,
         className: 'amenity-icon',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
       }});
-      const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
+      const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon, opacity: 1.0 }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
       
       // MEMBER 6: Add amenity to the nested layer group for its recommendation
       if (a.rec_index >= 0 && recAmenityLayers[a.rec_index]) {{
@@ -534,7 +540,7 @@ def step_2_preferences():
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
             html.Hr(),
 
-            html.Div("🚆 Transport (MRT / bus)", style=label_style),
+            html.Div("� MRT", style=label_style),
             html.Div(dcc.Slider(id="pref_transport", min=1, max=10, step=1, value=7,
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
             html.Hr(),
