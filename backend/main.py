@@ -6,12 +6,14 @@ Run:  uvicorn backend.main:app --reload
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 from datetime import datetime
 import requests
 import json
 import os
 import re
+import math
+import pandas as pd
 
 from backend.model import HDBPredictor
 
@@ -34,9 +36,6 @@ def _load_lookup():
         print(f"WARNING: {LOOKUP_PATH} not found. Town lookup will be limited.")
 
 # ── Street name normaliser ────────────────────────────────────────────────────
-# OneMap returns full names e.g. "TOH YI DRIVE"
-# Training data uses abbreviations e.g. "TOH YI DR"
-# We normalise OneMap → training-data style before lookup.
 
 _ABBREV = [
     (r"\bAVENUE\b",    "AVE"),
@@ -61,7 +60,7 @@ _ABBREV = [
     (r"\bBUKIT\b",     "BT"),
     (r"\bLORONG\b",    "LOR"),
     (r"\bJALAN\b",     "JLN"),
-    (r"\bPARK\b", "PK"),
+    (r"\bPARK\b",      "PK"),
 ]
 
 def _normalise_street(name: str) -> str:
@@ -72,14 +71,12 @@ def _normalise_street(name: str) -> str:
 
 
 def _town_from_block_street(block: str, road: str) -> str | None:
-    """Look up town using block + normalised street name."""
     block = block.strip().upper()
     road_norm = _normalise_street(road)
     key = f"{block}|{road_norm}"
     town = _BLOCK_STREET_LOOKUP.get(key)
     if town:
         return town
-    # Try without normalisation in case training data uses full name
     key_raw = f"{block}|{road.strip().upper()}"
     return _BLOCK_STREET_LOOKUP.get(key_raw)
 
@@ -97,13 +94,12 @@ HDB_TOWNS = sorted([
 
 
 def _town_from_address_string(address: str) -> str | None:
-    """Scan address string for a known HDB town name."""
     upper = address.upper().replace("SINGAPORE", "").strip()
 
     # Known estate aliases not in HDB town names
     aliases = {
         "BIDADARI": "TOA PAYOH",
-        "DAWSON": "QUEENSTOWN",
+        "DAWSON":   "QUEENSTOWN",
         "TREELODGE": "PUNGGOL",
     }
     for alias, town in aliases.items():
@@ -120,11 +116,6 @@ def _town_from_address_string(address: str) -> str | None:
 
 
 def _town_from_postal(postal: str) -> str | None:
-    """
-    Resolve HDB town from postal code via OneMap.
-    1. Block + street name lookup against training data (most accurate)
-    2. Town name scan of address string (fast fallback)
-    """
     try:
         r = requests.get(
             ONEMAP_SEARCH_URL,
@@ -140,13 +131,11 @@ def _town_from_postal(postal: str) -> str | None:
         block   = top.get("BLK_NO", "")
         road    = top.get("ROAD_NAME", "")
 
-        # Primary: block + street lookup
         if block and road:
             town = _town_from_block_street(block, road)
             if town:
                 return town
 
-        # Fallback: town name in address string
         return _town_from_address_string(address)
 
     except Exception:
@@ -154,11 +143,95 @@ def _town_from_postal(postal: str) -> str | None:
     return None
 
 
+# ── SAI calculation (mirrors notebook's calculate_sai_for_row exactly) ───────
+
+def _calculate_sai(row: dict, weights: dict, max_counts: dict, half_life: float = 500) -> float:
+    """
+    Mirrors calculate_sai_for_row() from the notebook exactly.
+    Categories: clinic, hawker, park, mrt
+    Scoring: 50% exponential decay distance + 50% linear density
+    """
+    decay_rate = math.log(2) / half_life
+
+    distances = {
+        "clinic": row.get("nearest_clinic_distance_m", 500),
+        "hawker": row.get("nearest_hawker_distance_m", 500),
+        "park":   row.get("nearest_park_distance_m", 500),
+        "mrt":    row.get("nearest_mrt_distance_m", 500),
+    }
+    counts = {
+        "clinic": row.get("clinic_count_1km", 1),
+        "hawker": row.get("hawker_count_1km", 1),
+        "park":   row.get("park_count_1km", 1),
+        "mrt":    row.get("mrt_count_1km", 1),
+    }
+
+    weighted_sum  = 0.0
+    total_weights = 0.0
+
+    for category in ["clinic", "hawker", "park", "mrt"]:
+        max_c  = max_counts.get(category, 1)
+        dist   = distances[category] if distances[category] == distances[category] else 500  # NaN check
+        count  = counts[category]    if counts[category]    == counts[category]    else 1
+        weight = weights.get(category, 1)
+
+        count_capped = min(count, max_c)
+        dist_score   = 50 * math.exp(-decay_rate * dist)
+        count_score  = 50 * (count_capped / max_c) if max_c > 0 else 0
+
+        weighted_sum  += (dist_score + count_score) * weight
+        total_weights += weight
+
+    return round(weighted_sum / total_weights, 1) if total_weights > 0 else 0.0
+
+
+# ── PropertyGuru dataset ──────────────────────────────────────────────────────
+
+PG_DATA_PATH = os.environ.get("PG_DATA_PATH", "data/raw/propertyguru_sample_SAI.csv.gz")
+_pg_df: pd.DataFrame | None = None
+_pg_max_counts: dict = {}
+
+
+def _load_pg_data():
+    global _pg_df, _pg_max_counts
+    try:
+        _pg_df = pd.read_csv(PG_DATA_PATH, compression="gzip")
+
+        # Parse price: "S$ 850,000" → 850000
+        _pg_df["buy_price"] = (
+            _pg_df["price"]
+            .str.replace(r"[^\d]", "", regex=True)
+            .astype(float)
+        )
+
+        # Postal: zero-padded 6-digit string
+        _pg_df["postal"] = (
+            _pg_df["postal_code"]
+            .astype("Int64")
+            .astype(str)
+            .str.replace("<NA>", "", regex=False)
+            .str.zfill(6)
+        )
+
+        # Precompute max counts from dataset (mirrors get_max_counts() in notebook)
+        _pg_max_counts = {
+            "clinic": int(_pg_df["clinic_count_1km"].max()) if "clinic_count_1km" in _pg_df.columns else 1,
+            "hawker": int(_pg_df["hawker_count_1km"].max()) if "hawker_count_1km" in _pg_df.columns else 1,
+            "park":   int(_pg_df["park_count_1km"].max())   if "park_count_1km"   in _pg_df.columns else 1,
+            "mrt":    int(_pg_df["mrt_count_1km"].max())    if "mrt_count_1km"    in _pg_df.columns else 1,
+        }
+
+        print(f"Loaded PropertyGuru dataset: {len(_pg_df)} listings.")
+        print(f"Max counts: {_pg_max_counts}")
+    except FileNotFoundError:
+        print(f"WARNING: {PG_DATA_PATH} not found. /recommend will not work.")
+
+
 # ── App setup ─────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="HDB Resale Price Predictor",
-    description="Hybrid Linear + XGBoost model for Singapore HDB resale prices.",
+    description="RPI-normalized XGBoost model for Singapore HDB resale prices.",
     version="1.0.0",
 )
 
@@ -169,29 +242,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Load model + lookup at startup ────────────────────────────────────────────
+# ── Load everything at startup ────────────────────────────────────────────────
 
 _predictor: HDBPredictor | None = None
 
 
 @app.on_event("startup")
-def _load_model():
+def _startup():
     global _predictor
     _load_lookup()
+    _load_pg_data()
     try:
         _predictor = HDBPredictor()
         print("Model loaded successfully.")
     except FileNotFoundError as e:
         print(f"WARNING: {e}")
-        print("Run `python -m backend.model` to train and save the model first.")
 
 
 def get_predictor() -> HDBPredictor:
     if _predictor is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model not loaded. Run `python -m backend.model` first.",
-        )
+        raise HTTPException(status_code=503, detail="Model not loaded.")
     return _predictor
 
 
@@ -223,11 +293,37 @@ class SellRequest(BaseModel):
 
 
 class SellResponse(BaseModel):
-    price:       int = Field(..., description="Point estimate (SGD)")
-    low:         int = Field(..., description="Lower bound ~93%")
-    high:        int = Field(..., description="Upper bound ~107%")
-    median_town: int = Field(..., description="Town median ~98%")
-    town:        str = Field(..., description="Resolved HDB town")
+    price:       int
+    low:         int
+    high:        int
+    median_town: int
+    town:        str
+
+
+class Constraints(BaseModel):
+    max_budget:       int         = Field(..., gt=0)
+    min_rooms:        int         = Field(..., ge=2)
+    preferred_towns:  List[str]   = Field(default=[])
+
+
+class Weights(BaseModel):
+    clinic: float = Field(5.0, ge=1, le=10)
+    hawker: float = Field(5.0, ge=1, le=10)
+    park:   float = Field(5.0, ge=1, le=10)
+    mrt:    float = Field(5.0, ge=1, le=10)
+
+
+class RecommendRequest(BaseModel):
+    constraints: Constraints
+    weights:     Weights
+
+
+class RecommendedListing(BaseModel):
+    town:        str
+    rooms:       int
+    postal:      str
+    buy_price:   int
+    listing_url: str
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -295,10 +391,6 @@ def predict_get(
 
 @app.post("/predict/sell", response_model=SellResponse, tags=["Prediction"])
 def predict_sell(body: SellRequest):
-    """
-    Step 1 endpoint — called by the Dash frontend with postal code, flat type,
-    and optional floor area. Returns price in the same shape as mock_predict_price().
-    """
     predictor = get_predictor()
 
     town = _town_from_postal(body.postal.strip())
@@ -308,8 +400,7 @@ def predict_sell(body: SellRequest):
     if not town:
         raise HTTPException(
             status_code=422,
-            detail=f"Could not resolve HDB town for postal code '{body.postal}'. "
-                   "Check it is a valid 6-digit Singapore HDB postal code.",
+            detail=f"Could not resolve HDB town for postal code '{body.postal}'.",
         )
 
     floor_area = body.floor_area_sqm
@@ -339,3 +430,73 @@ def predict_sell(body: SellRequest):
         median_town=int(price * 0.98),
         town=town,
     )
+
+
+@app.post("/recommend", response_model=List[RecommendedListing], tags=["Recommendation"])
+def recommend(body: RecommendRequest):
+    print(f"DEBUG /recommend received:")
+    print(f"  constraints: {body.constraints}")
+    print(f"  weights: {body.weights}")
+    """
+    Filter PropertyGuru listings by constraints, score by SAI, return top 3.
+    """
+    if _pg_df is None:
+        raise HTTPException(status_code=503, detail="PropertyGuru dataset not loaded.")
+
+    df = _pg_df.copy()
+
+    # ── Drop rows missing required fields ─────────────────────────────────────
+    df = df.dropna(subset=["buy_price", "postal", "latitude", "longitude",
+                            "nearest_mrt_distance_m", "nearest_clinic_distance_m",
+                            "nearest_park_distance_m", "nearest_community_club_distance_m"])
+
+    # ── Filter: budget ────────────────────────────────────────────────────────
+    df = df[df["buy_price"] <= body.constraints.max_budget]
+
+    # ── Filter: min rooms ─────────────────────────────────────────────────────
+    df = df[df["room_count"] >= body.constraints.min_rooms]
+
+    # ── Filter: preferred towns (case-insensitive partial match) ──────────────
+    if body.constraints.preferred_towns:
+        pattern = "|".join(
+            re.escape(t.strip()) for t in body.constraints.preferred_towns
+        )
+        df = df[df["town"].str.contains(pattern, case=False, na=False)]
+
+    if df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail="No listings found matching your constraints. Try increasing budget or relaxing filters.",
+        )
+
+    # ── Calculate SAI for each listing (mirrors notebook exactly) ──────────────
+    weights = {
+        "clinic": body.weights.clinic,
+        "hawker": body.weights.hawker,
+        "park":   body.weights.park,
+        "mrt":    body.weights.mrt,
+    }
+
+    df = df.copy()
+    df["sai_score"] = df.apply(
+        lambda row: _calculate_sai(row.to_dict(), weights, _pg_max_counts), axis=1
+    )
+
+    # ── Top 3 by SAI ──────────────────────────────────────────────────────────
+    top3 = df.nlargest(3, "sai_score")
+
+    results = []
+    for _, row in top3.iterrows():
+        results.append(RecommendedListing(
+            town=str(row["town"]),
+            rooms=int(row["room_count"]),
+            postal=str(row["postal"]),
+            buy_price=int(row["buy_price"]),
+            listing_url=str(row["listing_url"]),
+        ))
+
+    print(f"DEBUG /recommend returning {len(results)} listings:")
+    for r in results:
+        print(f"  {r}")
+
+    return results

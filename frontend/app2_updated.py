@@ -930,7 +930,12 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_
     #   recs = safe_post("/recommend", payload)
     #   if not recs:
     #       recs = mock_recommendations(constraints)
-    recs = mock_recommendations(constraints)
+
+    payload = {"constraints": constraints, "weights": prefs_w}
+    recs = safe_post("/recommend", payload)
+    if not recs:
+        recs = mock_recommendations(constraints)
+    
 
     # Geocode each recommendation
     for r in recs:
@@ -1123,11 +1128,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_
     # (built AFTER amenity fetching so nearest_* data is available)
     cards = []
     for i, r in enumerate(recs, start=1):
-        pg_url = build_propertyguru_url(
-            town=r["town"], rooms=r["rooms"],
-            min_price=max(0, int(r["buy_price"] * 0.90)),
-            max_price=int(r["buy_price"] * 1.10),
-        )
+        pg_url = r.get("listing_url", "https://www.propertyguru.com.sg")
 
         # Build amenity description strings
         hc = r.get("nearest_healthcare")

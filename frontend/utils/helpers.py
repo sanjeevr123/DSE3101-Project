@@ -23,9 +23,12 @@ def build_propertyguru_url(town, rooms, min_price, max_price, distance_to_mrt_km
 
 
 def weights_from_sliders(hc, tr, hw, rec):
-    raw = {"healthcare": float(hc), "transport": float(tr), "hawker": float(hw), "recreation": float(rec)}
-    s = sum(raw.values()) or 1.0
-    return {k: raw[k] / s for k in raw}
+    return {
+        "clinic": hc,
+        "mrt":    tr,
+        "hawker": hw,
+        "park":   rec,
+    }
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
