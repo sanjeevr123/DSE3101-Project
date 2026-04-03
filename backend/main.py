@@ -324,6 +324,7 @@ class RecommendedListing(BaseModel):
     postal:      str
     buy_price:   int
     listing_url: str
+    address_from_url: str
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -493,6 +494,7 @@ def recommend(body: RecommendRequest):
             postal=str(row["postal"]),
             buy_price=int(row["buy_price"]),
             listing_url=str(row["listing_url"]),
+            address_from_url=str(row["address_from_url"]),
         ))
 
     print(f"DEBUG /recommend returning {len(results)} listings:")

@@ -540,7 +540,7 @@ def step_2_preferences():
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
             html.Hr(),
 
-            html.Div("� MRT", style=label_style),
+            html.Div("🚆 MRT", style=label_style),
             html.Div(dcc.Slider(id="pref_transport", min=1, max=10, step=1, value=7,
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
             html.Hr(),
@@ -1151,7 +1151,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_
             ),
 
             # MEMBER 8: card title
-            html.Div(f"#{i} • {r['town']} • {r['rooms']} rooms", style={
+            html.Div(f"#{i} • {r.get('address_from_url', r['town'])} • {r['rooms']} rooms", style={
                 "fontSize": "28px",           # MEMBER 8: title size
                 "fontWeight": "950",
             }),
@@ -1179,7 +1179,7 @@ def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_
                 html.Li(f"🌳 {nature_str}", style={"fontSize": "18px", "fontWeight": "800"}),
             ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
             # MEMBER 8: PropertyGuru link
-            html.A("🔎 View matching listings on PropertyGuru", href=pg_url, target="_blank", style={
+            html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
                 "display": "inline-block",
                 "marginTop": "10px",
                 "fontSize": "20px",           # MEMBER 8: link size
