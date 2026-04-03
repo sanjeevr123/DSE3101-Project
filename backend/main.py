@@ -61,6 +61,7 @@ _ABBREV = [
     (r"\bBUKIT\b",     "BT"),
     (r"\bLORONG\b",    "LOR"),
     (r"\bJALAN\b",     "JLN"),
+    (r"\bPARK\b", "PK"),
 ]
 
 def _normalise_street(name: str) -> str:
@@ -98,6 +99,17 @@ HDB_TOWNS = sorted([
 def _town_from_address_string(address: str) -> str | None:
     """Scan address string for a known HDB town name."""
     upper = address.upper().replace("SINGAPORE", "").strip()
+
+    # Known estate aliases not in HDB town names
+    aliases = {
+        "BIDADARI": "TOA PAYOH",
+        "DAWSON": "QUEENSTOWN",
+        "TREELODGE": "PUNGGOL",
+    }
+    for alias, town in aliases.items():
+        if alias in upper:
+            return town
+
     for town in HDB_TOWNS:
         if "/" in town:
             if any(p in upper for p in town.split("/")):
