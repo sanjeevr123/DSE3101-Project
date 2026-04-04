@@ -98,10 +98,41 @@ def _town_from_address_string(address: str) -> str | None:
 
     # Known estate aliases not in HDB town names
     aliases = {
-        "BIDADARI": "TOA PAYOH",
-        "DAWSON":   "QUEENSTOWN",
-        "TREELODGE": "PUNGGOL",
-    }
+    "BIDADARI":   "TOA PAYOH",
+    "DAWSON":     "QUEENSTOWN",
+    "TREELODGE":  "PUNGGOL",
+    "DOVER":      "QUEENSTOWN",
+    "DUXTON":     "BUKIT MERAH",
+    "PINNACLE":   "BUKIT MERAH",
+    "SKYVILLE":   "DAWSON",  # actually Queenstown
+    "WATERWAY":   "PUNGGOL",
+    "NORTHSHORE": "PUNGGOL",
+    "MATILDA":    "PUNGGOL",
+    "CANBERRA":   "SEMBAWANG",
+    "MARSILING":  "WOODLANDS",
+    "RIVERVALE":  "SENGKANG",
+    "FERNVALE":   "SENGKANG",
+    "ANCHORVALE": "SENGKANG",
+    "COMPASSVALE":"SENGKANG",
+    "BUANGKOK":   "SENGKANG",
+    "EDGEFIELD":  "PUNGGOL",
+    "SUMANG":     "PUNGGOL",
+    "SAMUDERA":   "PUNGGOL",
+    "STRATHMORE": "QUEENSTOWN",
+    "COMMONWEALTH":"QUEENSTOWN",
+    "GHIM MOH":   "QUEENSTOWN",
+    "STIRLING":   "QUEENSTOWN",
+    "BENDEMEER":  "KALLANG/WHAMPOA",
+    "WHAMPOA":    "KALLANG/WHAMPOA",
+    "BOON KENG":  "KALLANG/WHAMPOA",
+    "JELAPANG":   "BUKIT PANJANG",
+    "FAJAR":      "BUKIT PANJANG",
+    "SEGAR":      "BUKIT PANJANG",
+    "ELIAS":      "PASIR RIS",
+    "LOYANG":     "PASIR RIS",
+    "YUNG":       "JURONG WEST",
+    "TAMAN":      "JURONG WEST",
+}
     for alias, town in aliases.items():
         if alias in upper:
             return town
@@ -619,7 +650,7 @@ def recommend(body: RecommendRequest):
             detail="No listings found matching your constraints. Try increasing budget or relaxing filters.",
         )
     # Keep cheapest listing per block
-    df = df.sort_values("buy_price").drop_duplicates(subset=["address_from_url"], keep="first")
+    df = df.sort_values("buy_price").drop_duplicates(subset=["onemap_full_address"], keep="first")
     # ── Calculate SAI for each listing (mirrors notebook exactly) ──────────────
     weights = {
         "clinic": body.weights.clinic,
@@ -634,7 +665,7 @@ def recommend(body: RecommendRequest):
     )
 
     # ── Top 3 by SAI ──────────────────────────────────────────────────────────
-    top3 = df.nlargest(3, "sai_score")
+    top3 = df.sort_values(by=["sai_score", "buy_price"], ascending=[False, True]).head(3)
 
     results = []
     for _, row in top3.iterrows():
@@ -644,7 +675,7 @@ def recommend(body: RecommendRequest):
             postal=str(row["postal"]),
             buy_price=int(row["buy_price"]),
             listing_url=str(row["listing_url"]),
-            address_from_url=str(row["address_from_url"]),
+            address_from_url=str(row["onemap_full_address"]),
         ))
     print(f"\nDEBUG SAI Scores (top 3):")
     for _, row in top3.iterrows():

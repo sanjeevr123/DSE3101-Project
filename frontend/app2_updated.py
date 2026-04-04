@@ -845,9 +845,10 @@ def autosave_step1(postal, flat_type, area):
     Output("sell_pred_box", "children"),
     Input("btn_estimate", "n_clicks"),
     State("sell_payload", "data"),
+    State("sell_geo", "data"),
     prevent_initial_call=True,
 )
-def estimate_price(n, sell_payload):
+def estimate_price(n, sell_payload, sell_geo):
     if not sell_payload or not sell_payload.get("postal"):
         return None, ""
 
@@ -857,13 +858,16 @@ def estimate_price(n, sell_payload):
         pred = mock_predict_price(sell_payload["postal"], sell_payload["flat_type"], sell_payload.get("floor_area_sqm"))
 
     # MEMBER 7: style price display — large number, confidence range
+    address_str = sell_geo.get("address", "") if sell_geo else ""
     box = html.Div([
         html.Div("Estimated selling price", style={"fontSize": "22px", "fontWeight": "950", "opacity": "0.85"}),
         html.Div(f"${pred['price']:,.0f}", style={
-            "fontSize": "52px",           # MEMBER 7: main price font size
+            "fontSize": "52px",
             "fontWeight": "950",
         }),
+        html.Div(address_str, style={"fontSize": "28px", "opacity": "0.7", "marginTop": "4px"}),
     ], style={"marginTop": "14px"})
+
     return pred, box
 
 
