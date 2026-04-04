@@ -519,6 +519,10 @@ def step_1_estimate():
             dcc.Input(id="sell_area", type="number", placeholder="e.g. 93", style=input_style_big),
             html.Div(style={"height": "16px"}),
 
+            html.Div("Remaining lease (years)", style=label_style),
+            dcc.Input(id="sell_lease", type="number", placeholder="e.g. 72", style=input_style_big),
+            html.Div(style={"height": "16px"}),
+
             html.Button("Estimate price", id="btn_estimate", n_clicks=0, style=btn_primary),
             html.Div(id="sell_pred_box"),
             html.Div(id="step1_saved_banner"),
@@ -677,7 +681,10 @@ app.layout = html.Div([
     html.Div([
         html.Div([
             # MEMBER 7: title emoji and text
-            html.H1(["🏠", html.Span("Downsizing Helper")], style=title_style),
+            html.Img(src="/assets/HomeCompass.png", style={
+    "height": "175px",
+    "marginBottom": "2px"
+}),
             html.Div(id="step_indicator"),
         ], style=container_style),
         html.Div(id="main_content", style=container_style),
