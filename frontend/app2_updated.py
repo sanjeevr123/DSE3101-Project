@@ -574,7 +574,7 @@ def step_3_limits():
             dcc.Input(id="lim_budget", type="number", value=550000, style=input_style_big),
             html.Div(style={"height": "14px"}),
 
-            html.Div("🛏️ Minimum rooms", style=label_style),
+            html.Div("🛏️ Flat Type", style=label_style),
             dcc.Dropdown(id="lim_min_rooms", options=[2, 3, 4, 5], value=3, clearable=False,
                          style={"fontSize": "22px"}),
             html.Div(style={"height": "14px"}),
@@ -893,7 +893,7 @@ def save_prefs(hc, tr, hw, rec):
 def save_limits(budget, min_rooms, towns):
     return {
         "max_budget": int(budget or 0),
-        "min_rooms": int(min_rooms or 2),
+        "max_rooms": int(min_rooms or 3),
         "preferred_towns": towns or [],
     }, html.Div("✅ Saved.", style=banner_ok)
 
@@ -916,6 +916,9 @@ def save_limits(budget, min_rooms, towns):
     prevent_initial_call=True,
 )
 def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
+
+    print(f"DEBUG prefs_w: {prefs_w}")
+    print(f"DEBUG constraints: {constraints}")
     # Validation
     if not lbs_result or not lbs_result.get("ok"):
         return html.Div("Please complete Step 4: LBS details", style=banner_warn), dash.no_update, None, None
