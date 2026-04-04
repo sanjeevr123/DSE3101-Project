@@ -160,10 +160,10 @@ def _calculate_sai(row: dict, weights: dict, max_counts: dict, half_life: float 
         "mrt":    row.get("nearest_mrt_distance_m", 500),
     }
     counts = {
-        "clinic": row.get("clinic_count_1km", 1),
-        "hawker": row.get("hawker_count_1km", 1),
-        "park":   row.get("park_count_1km", 1),
-        "mrt":    row.get("mrt_count_1km", 1),
+        "clinic": row.get("num_clinic_within_1000m", 1),
+        "hawker": row.get("num_hawker_within_1000m", 1),
+        "park":   row.get("num_park_within_1000m", 1),
+        "mrt":    row.get("num_mrt_within_1000m", 1),
     }
 
     weighted_sum  = 0.0
@@ -187,7 +187,7 @@ def _calculate_sai(row: dict, weights: dict, max_counts: dict, half_life: float 
 
 # ── PropertyGuru dataset ──────────────────────────────────────────────────────
 
-PG_DATA_PATH = os.environ.get("PG_DATA_PATH", "data/raw/propertyguru_sample_SAI.csv.gz")
+PG_DATA_PATH = os.environ.get("PG_DATA_PATH", "data/raw/propertyguru_enriched_locations (1).csv")
 _pg_df: pd.DataFrame | None = None
 _pg_max_counts: dict = {}
 
@@ -195,7 +195,78 @@ _pg_max_counts: dict = {}
 def _load_pg_data():
     global _pg_df, _pg_max_counts
     try:
-        _pg_df = pd.read_csv(PG_DATA_PATH, compression="gzip")
+        _pg_df = pd.read_csv(PG_DATA_PATH)
+
+        # Compute room_count
+        _pg_df["room_count"] = _pg_df["bedrooms"] + 1
+
+        # Map nearest MRT station to HDB town
+        station_to_town = {
+            'ADMIRALTY MRT STATION': 'Woodlands', 'ALJUNIED MRT STATION': 'Geylang',
+            'ANG MO KIO MRT STATION': 'Ang Mo Kio', 'BAKAU LRT STATION': 'Sengkang',
+            'BANGKIT LRT STATION': 'Bukit Panjang', 'BARTLEY MRT STATION': 'Serangoon',
+            'BAYSHORE MRT STATION': 'Bedok', 'BEAUTY WORLD MRT STATION': 'Bukit Timah',
+            'BEDOK MRT STATION': 'Bedok', 'BEDOK NORTH MRT STATION': 'Bedok',
+            'BEDOK RESERVOIR MRT STATION': 'Bedok', 'BENCOOLEN MRT STATION': 'Central Area',
+            'BENDEMEER MRT STATION': 'Kallang/Whampoa', 'BISHAN MRT STATION': 'Bishan',
+            'BOON KENG MRT STATION': 'Kallang/Whampoa', 'BOON LAY MRT STATION': 'Jurong West',
+            'BRADDELL MRT STATION': 'Toa Payoh', 'BRIGHT HILL MRT STATION': 'Bishan',
+            'BUANGKOK MRT STATION': 'Sengkang', 'BUKIT BATOK MRT STATION': 'Bukit Batok',
+            'BUKIT GOMBAK MRT STATION': 'Bukit Batok', 'BUKIT PANJANG LRT STATION': 'Bukit Panjang',
+            'BUKIT PANJANG MRT STATION': 'Bukit Panjang', 'BUONA VISTA MRT STATION': 'Queenstown',
+            'CALDECOTT MRT STATION': 'Toa Payoh', 'CANBERRA MRT STATION': 'Sembawang',
+            'CHOA CHU KANG MRT STATION': 'Choa Chu Kang', 'CLEMENTI MRT STATION': 'Clementi',
+            'COMMONWEALTH MRT STATION': 'Queenstown', 'COMPASSVALE LRT STATION': 'Sengkang',
+            'CORAL EDGE LRT STATION': 'Punggol', 'COVE LRT STATION': 'Punggol',
+            'DAKOTA MRT STATION': 'Geylang', 'DAMAI LRT STATION': 'Punggol',
+            'DOVER MRT STATION': 'Queenstown', 'EUNOS MRT STATION': 'Geylang',
+            'FAJAR LRT STATION': 'Bukit Panjang', 'FARRER PARK MRT STATION': 'Kallang/Whampoa',
+            'FARRER ROAD MRT STATION': 'Bukit Timah', 'FARMWAY LRT STATION': 'Sengkang',
+            'FERNVALE LRT STATION': 'Sengkang', 'GEYLANG BAHRU MRT STATION': 'Kallang/Whampoa',
+            'GREAT WORLD MRT STATION': 'Central Area', 'HARBOURFRONT MRT STATION': 'Bukit Merah',
+            'HAVELOCK MRT STATION': 'Bukit Merah', 'HOLLAND VILLAGE MRT STATION': 'Queenstown',
+            'HOUGANG MRT STATION': 'Hougang', 'JALAN BESAR MRT STATION': 'Central Area',
+            'JELAPANG LRT STATION': 'Bukit Panjang', 'JURONG EAST MRT STATION': 'Jurong East',
+            'KADALOOR LRT STATION': 'Punggol', 'KAKI BUKIT MRT STATION': 'Bedok',
+            'KALLANG MRT STATION': 'Kallang/Whampoa', 'KANGKAR LRT STATION': 'Sengkang',
+            'KATONG PARK MRT STATION': 'Marine Parade', 'KEAT HONG LRT STATION': 'Choa Chu Kang',
+            'KEMBANGAN MRT STATION': 'Bedok', 'KHATIB MRT STATION': 'Yishun',
+            'KOVAN MRT STATION': 'Hougang', 'KUPANG LRT STATION': 'Sengkang',
+            'LAKESIDE MRT STATION': 'Jurong West', 'LAVENDER MRT STATION': 'Kallang/Whampoa',
+            'LAYAR LRT STATION': 'Sengkang', 'LENTOR MRT STATION': 'Ang Mo Kio',
+            'LORONG CHUAN MRT STATION': 'Serangoon', 'MACPHERSON MRT STATION': 'Geylang',
+            'MARINE PARADE MRT STATION': 'Marine Parade', 'MARINE TERRACE MRT STATION': 'Marine Parade',
+            'MARSILING MRT STATION': 'Woodlands', 'MARYMOUNT MRT STATION': 'Bishan',
+            'MATTAR MRT STATION': 'Geylang', 'MAYFLOWER MRT STATION': 'Ang Mo Kio',
+            'MERIDIAN LRT STATION': 'Punggol', 'MOUNTBATTEN MRT STATION': 'Geylang',
+            'NIBONG LRT STATION': 'Punggol', 'OASIS LRT STATION': 'Punggol',
+            'ONE-NORTH MRT STATION': 'Queenstown', 'OUTRAM PARK MRT STATION': 'Central Area',
+            'PASIR RIS MRT STATION': 'Pasir Ris', 'PAYA LEBAR MRT STATION': 'Geylang',
+            'PENDING LRT STATION': 'Bukit Panjang', 'PETIR LRT STATION': 'Bukit Panjang',
+            'PHOENIX LRT STATION': 'Bukit Panjang', 'PIONEER MRT STATION': 'Jurong West',
+            'POTONG PASIR MRT STATION': 'Toa Payoh', 'PUNGGOL LRT STATION': 'Punggol',
+            'PUNGGOL MRT STATION': 'Punggol', 'PUNGGOL POINT LRT STATION': 'Punggol',
+            'QUEENSTOWN MRT STATION': 'Queenstown', 'RANGGUNG LRT STATION': 'Sengkang',
+            'REDHILL MRT STATION': 'Bukit Merah', 'RENJONG LRT STATION': 'Sengkang',
+            'RIVIERA LRT STATION': 'Punggol', 'RUMBIA LRT STATION': 'Sengkang',
+            'SAMUDERA LRT STATION': 'Punggol', 'SEGAR LRT STATION': 'Bukit Panjang',
+            'SEMBAWANG MRT STATION': 'Sembawang', 'SENGKANG MRT STATION': 'Sengkang',
+            'SENJA LRT STATION': 'Bukit Panjang', 'SERANGOON MRT STATION': 'Serangoon',
+            'SIMEI MRT STATION': 'Tampines', 'SOO TECK LRT STATION': 'Punggol',
+            'SOUTH VIEW LRT STATION': 'Choa Chu Kang', 'SUMANG LRT STATION': 'Punggol',
+            'TAI SENG MRT STATION': 'Geylang', 'TAMPINES EAST MRT STATION': 'Tampines',
+            'TAMPINES MRT STATION': 'Tampines', 'TAMPINES WEST MRT STATION': 'Tampines',
+            'TANAH MERAH MRT STATION': 'Bedok', 'TANJONG PAGAR MRT STATION': 'Central Area',
+            'TECK WHYE LRT STATION': 'Choa Chu Kang', 'TELOK BLANGAH MRT STATION': 'Bukit Merah',
+            'THANGGAM LRT STATION': 'Sengkang', 'TIONG BAHRU MRT STATION': 'Bukit Merah',
+            'TOA PAYOH MRT STATION': 'Toa Payoh', 'TONGKANG LRT STATION': 'Sengkang',
+            'UBI MRT STATION': 'Geylang', 'UPPER CHANGI MRT STATION': 'Tampines',
+            'UPPER THOMSON MRT STATION': 'Bishan', 'WOODLANDS MRT STATION': 'Woodlands',
+            'WOODLANDS NORTH MRT STATION': 'Woodlands', 'WOODLANDS SOUTH MRT STATION': 'Woodlands',
+            'WOODLEIGH MRT STATION': 'Toa Payoh', 'YEW TEE MRT STATION': 'Choa Chu Kang',
+            'YIO CHU KANG MRT STATION': 'Ang Mo Kio', 'YISHUN MRT STATION': 'Yishun',
+        }
+        _pg_df["hdb_town"] = _pg_df["nearest_mrt_name"].map(station_to_town)
 
         # Parse price: "S$ 850,000" → 850000
         _pg_df["buy_price"] = (
@@ -213,12 +284,12 @@ def _load_pg_data():
             .str.zfill(6)
         )
 
-        # Precompute max counts from dataset (mirrors get_max_counts() in notebook)
+        # Fixed max counts from dataset (as per notebook)
         _pg_max_counts = {
-            "clinic": int(_pg_df["clinic_count_1km"].max()) if "clinic_count_1km" in _pg_df.columns else 1,
-            "hawker": int(_pg_df["hawker_count_1km"].max()) if "hawker_count_1km" in _pg_df.columns else 1,
-            "park":   int(_pg_df["park_count_1km"].max())   if "park_count_1km"   in _pg_df.columns else 1,
-            "mrt":    int(_pg_df["mrt_count_1km"].max())    if "mrt_count_1km"    in _pg_df.columns else 1,
+            "clinic": 10,
+            "hawker": 5,
+            "park":   3,
+            "mrt":    3,
         }
 
         print(f"Loaded PropertyGuru dataset: {len(_pg_df)} listings.")
@@ -319,11 +390,11 @@ class RecommendRequest(BaseModel):
 
 
 class RecommendedListing(BaseModel):
-    town:        str
-    rooms:       int
-    postal:      str
-    buy_price:   int
-    listing_url: str
+    town:             str
+    rooms:            int
+    postal:           str
+    buy_price:        int
+    listing_url:      str
     address_from_url: str
 
 
@@ -435,9 +506,12 @@ def predict_sell(body: SellRequest):
 
 @app.post("/recommend", response_model=List[RecommendedListing], tags=["Recommendation"])
 def recommend(body: RecommendRequest):
-    print(f"DEBUG /recommend received:")
-    print(f"  constraints: {body.constraints}")
-    print(f"  weights: {body.weights}")
+
+    print(f"\n{'='*60}")
+    print(f"DEBUG /recommend")
+    print(f"  Constraints: budget={body.constraints.max_budget}, min_rooms={body.constraints.min_rooms}, towns={body.constraints.preferred_towns}")
+    print(f"  Weights: clinic={body.weights.clinic}, hawker={body.weights.hawker}, park={body.weights.park}, mrt={body.weights.mrt}")
+    print(f"{'='*60}")
     """
     Filter PropertyGuru listings by constraints, score by SAI, return top 3.
     """
@@ -449,7 +523,7 @@ def recommend(body: RecommendRequest):
     # ── Drop rows missing required fields ─────────────────────────────────────
     df = df.dropna(subset=["buy_price", "postal", "latitude", "longitude",
                             "nearest_mrt_distance_m", "nearest_clinic_distance_m",
-                            "nearest_park_distance_m", "nearest_community_club_distance_m"])
+                            "nearest_park_distance_m", "nearest_hawker_distance_m"])
 
     # ── Filter: budget ────────────────────────────────────────────────────────
     df = df[df["buy_price"] <= body.constraints.max_budget]
@@ -462,7 +536,7 @@ def recommend(body: RecommendRequest):
         pattern = "|".join(
             re.escape(t.strip()) for t in body.constraints.preferred_towns
         )
-        df = df[df["town"].str.contains(pattern, case=False, na=False)]
+        df = df[df["hdb_town"].str.contains(pattern, case=False, na=False)]
 
     if df.empty:
         raise HTTPException(
@@ -489,7 +563,7 @@ def recommend(body: RecommendRequest):
     results = []
     for _, row in top3.iterrows():
         results.append(RecommendedListing(
-            town=str(row["town"]),
+            town=str(row["hdb_town"]),
             rooms=int(row["room_count"]),
             postal=str(row["postal"]),
             buy_price=int(row["buy_price"]),
@@ -497,8 +571,12 @@ def recommend(body: RecommendRequest):
             address_from_url=str(row["address_from_url"]),
         ))
 
-    print(f"DEBUG /recommend returning {len(results)} listings:")
-    for r in results:
-        print(f"  {r}")
 
+    print(f"\nDEBUG SAI Scores (top 3):")
+    for _, row in top3.iterrows():
+        print(f"  {row['address_from_url']} | town={row['hdb_town']} | price=${int(row['buy_price']):,} | SAI={row['sai_score']}")
+        print(f"    distances: clinic={row.get('nearest_clinic_distance_m','N/A'):.0f}m, hawker={row.get('nearest_hawker_distance_m','N/A'):.0f}m, park={row.get('nearest_park_distance_m','N/A'):.0f}m, mrt={row.get('nearest_mrt_distance_m','N/A'):.0f}m")
+        print(f"    counts: clinic={row.get('num_clinic_within_1000m','N/A')}, hawker={row.get('num_hawker_within_1000m','N/A')}, park={row.get('num_park_within_1000m','N/A')}, mrt={row.get('num_mrt_within_1000m','N/A')}")
+    print(f"{'='*60}\n")
+    
     return results
