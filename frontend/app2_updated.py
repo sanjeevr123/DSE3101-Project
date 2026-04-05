@@ -1201,44 +1201,57 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 inline=True,
             ),
 
-            # MEMBER 8: card title
-            html.Div(f"#{i} • {r.get('address_from_url', r['town'])} • {r['rooms']} rooms", style={
+            # MEMBER 8: card title (address only)
+            html.Div(f"#{i} • {r.get('address_from_url', r['town'])}", style={
                 "fontSize": "28px",           # MEMBER 8: title size
                 "fontWeight": "950",
                 "lineHeight": "1.2",
-            }),
-            # MEMBER 8: buy price
-            html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
-                "fontSize": "26px", "fontWeight": "950", "marginBottom": "2px", "lineHeight": "1.4",
             }),
             # MEMBER 8: cash unlocked
             html.Div(f"Cash unlocked (estimate): ${r['cash_unlocked']:,.0f}", style={
                 "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.6",
             }),
-            # MEMBER 8: distance
-            html.Div(f"Distance from your flat: {r['dist_from_home_km']} km", style={
-                "fontSize": "20px", "fontWeight": "900", "opacity": "0.88", "lineHeight": "1.6",
+            # MEMBER 8: buy price (always visible)
+            html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
+                "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.5", "marginTop": "4px",
             }),
-            # MEMBER 8: amenity distances — bullet point list
-            html.Div("Nearest Amenities within 1km:", style={
-                "fontSize": "20px", "fontWeight": "850", "opacity": "0.85",
-                "marginTop": "6px",
-            }),
-            html.Ul([
-                html.Li(f"🏥 {health_str}", style={"fontSize": "18px", "fontWeight": "800"}),
-                html.Li(f"🍜 {hawker_str}", style={"fontSize": "18px", "fontWeight": "800"}),
-                html.Li(f"🚆 {transport_str}", style={"fontSize": "18px", "fontWeight": "800"}),
-                html.Li(f"🌳 {nature_str}", style={"fontSize": "18px", "fontWeight": "800"}),
-            ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
-            # MEMBER 8: PropertyGuru link
-            html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
-                "display": "inline-block",
-                "marginTop": "10px",
-                "fontSize": "20px",           # MEMBER 8: link size
-                "fontWeight": "950",
-                "textDecoration": "none",
-                "color": "#0ea5e9",           # MEMBER 8: link colour
-            }),
+            # MEMBER 8: dropdown for additional details
+            html.Details([
+                html.Summary("Nearby Amenities ▼", style={
+                    "fontSize": "20px",
+                    "fontWeight": "900",
+                    "cursor": "pointer",
+                    "marginTop": "8px",
+                    "display": "inline-block",
+                    "padding": "6px 12px",
+                    "border": "1.5px solid #94a3b8",
+                    "borderRadius": "10px",
+                    "backgroundColor": "rgba(148, 163, 184, 0.1)",
+                }),
+                html.Div([
+                    html.Div(f"Distance from your flat: {r['dist_from_home_km']} km", style={
+                        "fontSize": "18px", "fontWeight": "900", "opacity": "0.88", "lineHeight": "1.6", "marginTop": "10px",
+                    }),
+                    html.Div("Nearest Amenities within 1km:", style={
+                        "fontSize": "18px", "fontWeight": "850", "opacity": "0.85",
+                        "marginTop": "6px",
+                    }),
+                    html.Ul([
+                        html.Li(f"🏥 {health_str}", style={"fontSize": "16px", "fontWeight": "800"}),
+                        html.Li(f"🍜 {hawker_str}", style={"fontSize": "16px", "fontWeight": "800"}),
+                        html.Li(f"🚆 {transport_str}", style={"fontSize": "16px", "fontWeight": "800"}),
+                        html.Li(f"🌳 {nature_str}", style={"fontSize": "16px", "fontWeight": "800"}),
+                    ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
+                    html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
+                        "display": "inline-block",
+                        "marginTop": "10px",
+                        "fontSize": "18px",           # MEMBER 8: link size
+                        "fontWeight": "950",
+                        "textDecoration": "none",
+                        "color": "#0ea5e9",           # MEMBER 8: link colour
+                    }),
+                ]),
+            ]),
         ], style={**card_style, "marginTop": "14px"}))
     if lbs_result and lbs_result.get("ok"):
         cards.append(build_lbs_result_card(lbs_result, card_style))
