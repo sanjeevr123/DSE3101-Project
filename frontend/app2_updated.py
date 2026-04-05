@@ -717,6 +717,8 @@ app.layout = html.Div([
     dcc.Store(id="results_lbs_result"),
     *lbs_stores(),
     
+    html.Div(id="results_list", style={"display": "none"}),
+    html.Iframe(id="results_map", style={"display": "none"}),
     html.Div([
         html.Div([
             # MEMBER 7: title emoji and text
@@ -824,11 +826,12 @@ def is_valid_sg_postal(postal):
     Input("sell_postal", "value"),
     Input("sell_flat_type", "value"),
     Input("sell_area", "value"),
+    Input("sell_lease", "value"),
     prevent_initial_call=True,
 )
 
 # amanda: fixing autosave postal code between steps. (added the autosave_step1 function)
-def autosave_step1(postal, flat_type, area):
+def autosave_step1(postal, flat_type, area, lease):
     """Auto-save Step 1 form data and geocode the postal code."""
     postal = (postal or "").strip()
     flat_type = flat_type or "4 ROOM"
@@ -838,6 +841,7 @@ def autosave_step1(postal, flat_type, area):
         "postal": postal,
         "flat_type": flat_type,
         "floor_area_sqm": float(area) if area not in (None, "") else None,
+        "remaining_lease": int(lease) if lease not in (None, "") else None,
     }
     
     # Validation checks
