@@ -1205,18 +1205,19 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
             html.Div(f"#{i} • {r.get('address_from_url', r['town'])} • {r['rooms']} rooms", style={
                 "fontSize": "28px",           # MEMBER 8: title size
                 "fontWeight": "950",
+                "lineHeight": "1.2",
             }),
             # MEMBER 8: buy price
             html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
-                "fontSize": "22px", "fontWeight": "900",
+                "fontSize": "26px", "fontWeight": "950", "marginBottom": "2px", "lineHeight": "1.4",
             }),
             # MEMBER 8: cash unlocked
             html.Div(f"Cash unlocked (estimate): ${r['cash_unlocked']:,.0f}", style={
-                "fontSize": "22px", "fontWeight": "900",
+                "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.6",
             }),
             # MEMBER 8: distance
             html.Div(f"Distance from your flat: {r['dist_from_home_km']} km", style={
-                "fontSize": "20px", "fontWeight": "900", "opacity": "0.88",
+                "fontSize": "20px", "fontWeight": "900", "opacity": "0.88", "lineHeight": "1.6",
             }),
             # MEMBER 8: amenity distances — bullet point list
             html.Div("Nearest Amenities within 1km:", style={
