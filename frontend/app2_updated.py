@@ -732,6 +732,21 @@ app.layout = html.Div([
         html.Div(id="results_list", style={"display": "none"}),
         html.Iframe(id="results_map", style={"display": "none"}),
         html.Div(id="results_loading_overlay", style={"display": "none"}),
+        html.Div(id="estimate_loading_overlay", style={"display": "none"}, children=[
+            html.Div([
+                html.Div("⏳", style={
+                    "fontSize": "64px",
+                    "marginBottom": "24px",
+                    "animation": "pulse 1s ease-in-out infinite",
+                }),
+                html.Div("Estimating price...", style={
+                    "fontSize": "24px",
+                    "fontWeight": "900",
+                    "color": "white",
+                    "fontFamily": "Arial, sans-serif",
+                }),
+            ], style={"textAlign": "center"}),
+        ]),
     ], style=base_page_style),
 
     # Comparison modal — MEMBER 8: Compare Units popup
@@ -951,6 +966,66 @@ def estimate_price(n, sell_payload, sell_geo):
     ], style={"marginTop": "14px"})
 
     return pred, box
+
+
+@app.callback(
+    Output("estimate_loading_overlay", "style"),
+    Input("btn_estimate", "n_clicks"),
+    State("step", "data"),
+    prevent_initial_call=True,
+)
+def show_loading_on_estimate(n_clicks, step):
+    """Show loading overlay while estimate price is running on Step 1."""
+    if int(step or 1) == 1 and n_clicks:
+        return {
+            "display": "flex",
+            "position": "fixed",
+            "top": "0",
+            "left": "0",
+            "right": "0",
+            "bottom": "0",
+            "backgroundColor": "rgba(0, 0, 0, 0.4)",
+            "zIndex": "2000",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "flexDirection": "column",
+        }
+    return {
+        "display": "none",
+        "position": "fixed",
+        "top": "0",
+        "left": "0",
+        "right": "0",
+        "bottom": "0",
+        "backgroundColor": "rgba(0, 0, 0, 0.4)",
+        "zIndex": "2000",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "flexDirection": "column",
+    }
+
+
+@app.callback(
+    Output("estimate_loading_overlay", "style", allow_duplicate=True),
+    Input("sell_pred", "data"),
+    State("step", "data"),
+    prevent_initial_call=True,
+)
+def hide_loading_when_estimate_ready(sell_pred, step):
+    """Hide estimate loading overlay once estimate callback returns."""
+    return {
+        "display": "none",
+        "position": "fixed",
+        "top": "0",
+        "left": "0",
+        "right": "0",
+        "bottom": "0",
+        "backgroundColor": "rgba(0, 0, 0, 0.4)",
+        "zIndex": "2000",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "flexDirection": "column",
+    }
 
 
 # ── Step 2: save weights ──
