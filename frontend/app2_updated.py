@@ -703,6 +703,7 @@ app.layout = html.Div([
         "justifyContent": "center",
         "alignItems": "center",
         "overflow": "auto",
+        "fontFamily": "Arial, sans-serif",
     }, children=[
         html.Div([
             html.Div([

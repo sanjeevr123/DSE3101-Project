@@ -8,7 +8,7 @@ base_page_style = {
     "minHeight": "100vh",
     "background": PAGE_BG,
     "padding": "22px 18px",
-    "fontFamily": "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    "fontFamily": "Arial, sans-serif",
     "color": "#0f172a",
 }
 container_style = {
