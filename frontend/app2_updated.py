@@ -617,7 +617,6 @@ def step_5_results():
             # Left column: results — MEMBER 8: owns this section
             # amanda: 2 html.button() added
             html.Div([
-                html.Button("Run results", id="btn_run_all", n_clicks=0, style=btn_primary),
                 html.Div(id="results_list", style={"marginTop": "16px"}),
                 html.Div([
                     html.Button("Start over", id="btn_reset", n_clicks=0, style=btn_reset),
@@ -906,7 +905,8 @@ def save_limits(budget, min_rooms, towns):
     Output("results_map", "srcDoc"),
     Output("recs_data", "data"),
     Output("results_lbs_result", "data"),
-    Input("btn_run_all", "n_clicks"),
+    Input("main_content", "children"),
+    State("step", "data"),
     State("sell_payload", "data"),
     State("sell_geo", "data"),
     State("sell_pred", "data"),
@@ -915,7 +915,9 @@ def save_limits(budget, min_rooms, towns):
     State("lbs_result", "data"),
     prevent_initial_call=True,
 )
-def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
+def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
+    if int(step or 1) != 5:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
     # Validation
     if not lbs_result or not lbs_result.get("ok"):
         return html.Div("Please complete Step 4: LBS details", style=banner_warn), dash.no_update, None, None
