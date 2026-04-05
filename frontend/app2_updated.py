@@ -624,6 +624,7 @@ def step_5_results():
             ], style={
                 "flex": "1",
                 "minWidth": "420px",  # MEMBER 8: min width of results column
+                "position": "relative",
             }),
 
             # Right column: map — MEMBER 6: owns this section
@@ -648,6 +649,7 @@ def step_5_results():
             ], style={
                 "flex": "1.2",
                 "minWidth": "520px",  # MEMBER 6: min width of map column
+                "position": "relative",
             }),
         ], style={
             **card_style,
@@ -655,6 +657,37 @@ def step_5_results():
             "gap": "18px",            # MEMBER 7: gap between results and map columns
             "alignItems": "flex-start",
         }),
+        # Loading overlay
+        html.Div(id="results_loading_overlay", style={
+            "position": "fixed",
+            "top": "0",
+            "left": "0",
+            "right": "0",
+            "bottom": "0",
+            "backgroundColor": "rgba(0, 0, 0, 0.4)",
+            "display": "none",
+            "zIndex": "2000",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "flexDirection": "column",
+        }, children=[
+            html.Div([
+                # Spinner using Unicode
+                html.Div("⏳", style={
+                    "fontSize": "64px",
+                    "marginBottom": "24px",
+                    "animation": "pulse 1s ease-in-out infinite",
+                }),
+                html.Div("Generating results...", style={
+                    "fontSize": "24px",
+                    "fontWeight": "900",
+                    "color": "white",
+                    "fontFamily": "Arial, sans-serif",
+                }),
+            ], style={
+                "textAlign": "center",
+            }),
+        ]),
     ])
 
 
@@ -703,7 +736,6 @@ app.layout = html.Div([
         "justifyContent": "center",
         "alignItems": "center",
         "overflow": "auto",
-        "fontFamily": "Arial, sans-serif",
     }, children=[
         html.Div([
             html.Div([
@@ -920,13 +952,14 @@ def save_limits(budget, min_rooms, towns):
     State("lbs_result", "data"),
     prevent_initial_call=True,
 )
+
 def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
     if int(step or 1) != 5:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     print(f"DEBUG prefs_w: {prefs_w}")
     print(f"DEBUG constraints: {constraints}")
-
+    
     # Validation
     if not lbs_result or not lbs_result.get("ok"):
         return html.Div("Please complete Step 4: LBS details", style=banner_warn), dash.no_update, None, None
@@ -1211,6 +1244,40 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
     return html.Div([*cards]), map_doc, recs, lbs_result
+
+
+# ── Loading indicator for Step 5 ──
+
+@app.callback(
+    Output("results_loading_overlay", "style"),
+    Input("main_content", "children"),
+    State("step", "data"),
+    prevent_initial_call=True,
+)
+def show_loading_on_step5(main_content, step):
+    """Show loading overlay when entering Step 5."""
+    if int(step or 1) == 5:
+        return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
+    return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
+
+
+@app.callback(
+    Output("results_loading_overlay", "style", allow_duplicate=True),
+    Input("results_list", "children"),
+    State("step", "data"),
+    prevent_initial_call=True,
+)
+def hide_loading_when_results_ready(results_list_children, step):
+    """Hide loading overlay once results are populated."""
+    if int(step or 1) != 5:
+        return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
+    
+    # Hide loading if results_list has content
+    if results_list_children:
+        return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
+    
+    # Show loading if no content yet
+    return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
 
 
 # ── Reset ──
