@@ -30,6 +30,12 @@ import json as json_module
 import csv
 import io
 import re
+import dash_bootstrap_components as dbc
+
+app = dash.Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.BOOTSTRAP]
+)
 logging.basicConfig(level=logging.DEBUG, force=True)
 logger = logging.getLogger("amenity_debug")
 logger.setLevel(logging.DEBUG)
@@ -57,8 +63,6 @@ def print_healthcare_themes(onemap_token):
         print("[Done] Use the QUERYNAME(s) above in your amenity fetch logic.")
     except Exception as e:
         print(f"[Error] Could not fetch OneMap themes: {e}")
-def _fetch_onemap_healthcare(lat, lon, radius_km=1.0, limit=9999):
-    return get_nearby_amenities("healthcare", lat, lon, radius_km=radius_km, limit=limit)
 
 from dash import Dash, html, dcc, Input, Output, State
 import dash
@@ -103,15 +107,17 @@ from services.api import (
 )
 from services.mock_backend import mock_predict_price, mock_recommendations
 from utils.helpers import build_propertyguru_url, weights_from_sliders, haversine_km
-
 try:
     from frontend.lbs_required_patch import (
         STEP_META,
         lbs_stores,
         step_4_lbs,
         register_lbs_callbacks,
+        build_results_lbs_summary,
+        build_lbs_card_block,
         build_lbs_result_card,
         validate_lbs_for_navigation,
+        compute_lbs_result,
     )
 except ImportError:
     from lbs_required_patch import (
@@ -119,13 +125,15 @@ except ImportError:
         lbs_stores,
         step_4_lbs,
         register_lbs_callbacks,
+        build_results_lbs_summary,
+        build_lbs_card_block,
         build_lbs_result_card,
         validate_lbs_for_navigation,
+        compute_lbs_result,
     )
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
-
 register_lbs_callbacks(app, banner_ok=banner_ok, banner_warn=banner_warn, card_style=card_style)
 
 # ============================================================================
@@ -191,11 +199,10 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       background: rgba(255,255,255,0.92); padding: 10px 12px;
       border: 1px solid rgba(15,23,42,0.15); border-radius: 12px;
       font-family: system-ui; font-size: 14px; font-weight: 800; color: #0f172a;
+            min-width: 220px;
     }}
-    .legend-columns {{ display: flex; gap: 16px; align-items: flex-start; }}
-    .legend-col {{ display: flex; flex-direction: column; }}
     .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }}
-    .amenity-icon {{ font-size: 18px; background: none; border: none; opacity: 1.0; }}
+    .amenity-icon {{ font-size: 24px; background: none; border: none; }}
         .legend-title {{ font-size: 15px; font-weight: 900; margin-bottom: 8px; }}
         .legend-note {{ font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 8px; }}
         .toggle-row {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }}
@@ -211,31 +218,26 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
   <div id="map"></div>
   <!-- MEMBER 6: update legend labels and dot colours -->
     <div class="legend" id="layer-controls">
-        <div class="legend-columns">
-          <div class="legend-col">
-            <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat</div>
-            <div id="recommendation-toggles"></div>
-          </div>
-          <div style="border-left: 1px solid #e2e8f0; margin: 0 4px;"></div>
-          <div class="legend-col">
-            <div style="margin-bottom:8px; font-size:13px; font-weight:900;">Amenities</div>
-            <div class="toggle-row">
-                <span>🏥 Healthcare</span>
-                <label class="switch"><input type="checkbox" data-kind="healthcare" checked><span class="slider"></span></label>
-            </div>
-            <div class="toggle-row">
-                <span>🚇 MRT</span>
-                <label class="switch"><input type="checkbox" data-kind="transport" checked><span class="slider"></span></label>
-            </div>
-            <div class="toggle-row">
-                <span>🍜 Hawker / Food</span>
-                <label class="switch"><input type="checkbox" data-kind="hawker / food" checked><span class="slider"></span></label>
-            </div>
-            <div class="toggle-row">
-                <span>🌳 Parks</span>
-                <label class="switch"><input type="checkbox" data-kind="nature" checked><span class="slider"></span></label>
-            </div>
-          </div>
+        <div class="legend-title">Map Layers</div>
+        <div class="legend-note">Toggle layers with switches</div>
+        <div style="margin-bottom:8px; font-size:13px; font-weight:900;">🏠 Your flat</div>
+        <div id="recommendation-toggles" style="margin-bottom:8px;"></div>
+        <div style="margin-bottom:8px; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size:13px; font-weight:900;">Amenities</div>
+        <div class="toggle-row">
+            <span>🏥 Healthcare</span>
+            <label class="switch"><input type="checkbox" data-kind="healthcare" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span>🚇 Transport</span>
+            <label class="switch"><input type="checkbox" data-kind="transport" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span>🍜 Hawker / Food</span>
+            <label class="switch"><input type="checkbox" data-kind="hawker / food" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span>🌳 Nature</span>
+            <label class="switch"><input type="checkbox" data-kind="nature" checked><span class="slider"></span></label>
         </div>
   </div>
   <script>
@@ -292,7 +294,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     // Add markers for points (your flat + recommendations)
     points.forEach((p, index) => {{
       const icon = index === 0 ? homeIcon : recommendIcon;
-    const marker = L.marker([p.lat, p.lon], {{ icon: icon, opacity: 1.0 }}).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
+      const marker = L.marker([p.lat, p.lon], {{ icon: icon }}).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
       
       // MEMBER 6: Add to appropriate layer
       if (p.rec_index === -1) {{
@@ -315,10 +317,10 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       const amenityIcon = L.divIcon({{
         html: iconHtml,
         className: 'amenity-icon',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
       }});
-      const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon, opacity: 1.0 }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
+      const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
       
       // MEMBER 6: Add amenity to the nested layer group for its recommendation
       if (a.rec_index >= 0 && recAmenityLayers[a.rec_index]) {{
@@ -515,12 +517,8 @@ def step_1_estimate():
             ),
             html.Div(style={"height": "14px"}),
 
-            html.Div("Floor area (sqm)", style=label_style),
-            dcc.Input(id="sell_area", type="number", placeholder="e.g. 93", style=input_style_big),
-            html.Div(style={"height": "16px"}),
-
-            html.Div("Remaining lease (years)", style=label_style),
-            dcc.Input(id="sell_lease", type="number", placeholder="e.g. 72", style=input_style_big),
+            html.Div("Floor area (sqm) (optional)", style=label_style),
+            dcc.Input(id="sell_area", type="number", value=90, style=input_style_big),
             html.Div(style={"height": "16px"}),
 
             html.Button("Estimate price", id="btn_estimate", n_clicks=0, style=btn_primary),
@@ -544,7 +542,7 @@ def step_2_preferences():
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
             html.Hr(),
 
-            html.Div("🚆 MRT", style=label_style),
+            html.Div("🚆 Transport (MRT / bus)", style=label_style),
             html.Div(dcc.Slider(id="pref_transport", min=1, max=10, step=1, value=7,
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
             html.Hr(),
@@ -574,7 +572,7 @@ def step_3_limits():
             dcc.Input(id="lim_budget", type="number", value=550000, style=input_style_big),
             html.Div(style={"height": "14px"}),
 
-            html.Div("🛏️ Flat Type", style=label_style),
+            html.Div("🛏️ Minimum rooms", style=label_style),
             dcc.Dropdown(id="lim_min_rooms", options=[2, 3, 4, 5], value=3, clearable=False,
                          style={"fontSize": "22px"}),
             html.Div(style={"height": "14px"}),
@@ -601,29 +599,27 @@ def step_3_limits():
     ])
 
 
-# ── STEP 4: Results ───────────────────────────────────────────────────────
-# MEMBER 8: result cards + layout   |   MEMBER 6: map
+# ── STEP 4: LBS details ───────────────────────────────────────────────────
+
 def step_4_lbs_page():
     return step_4_lbs(
-        card_style= card_style,
-        label_style= label_style,
-        input_style_big= input_style_big,
+        card_style=card_style,
+        label_style=label_style,
+        input_style_big=input_style_big,
     )
+
+
+# ── STEP 5: Results ───────────────────────────────────────────────────────
+# MEMBER 8: result cards + layout   |   MEMBER 6: map
 
 def step_5_results():
     return html.Div([
         html.Div("Step 5: Results", style={"fontSize": "36px", "fontWeight": "950"}),
-        html.Div('Compare units in detail by selecting and clicking the "Compare Units" button at the bottom of the page.', style={
-            "fontSize": "18px",
-            "fontWeight": "700",
-            "opacity": "0.8",
-            "marginTop": "8px",
-            "marginBottom": "14px",
-        }),
         html.Div([
             # Left column: results — MEMBER 8: owns this section
             # amanda: 2 html.button() added
             html.Div([
+                html.Button("Run results", id="btn_run_all", n_clicks=0, style=btn_primary),
                 html.Div(id="results_list", style={"marginTop": "16px"}),
                 html.Div([
                     html.Button("Start over", id="btn_reset", n_clicks=0, style=btn_reset),
@@ -631,7 +627,6 @@ def step_5_results():
             ], style={
                 "flex": "1",
                 "minWidth": "420px",  # MEMBER 8: min width of results column
-                "position": "relative",
             }),
 
             # Right column: map — MEMBER 6: owns this section
@@ -656,7 +651,6 @@ def step_5_results():
             ], style={
                 "flex": "1.2",
                 "minWidth": "520px",  # MEMBER 6: min width of map column
-                "position": "relative",
             }),
         ], style={
             **card_style,
@@ -664,37 +658,6 @@ def step_5_results():
             "gap": "18px",            # MEMBER 7: gap between results and map columns
             "alignItems": "flex-start",
         }),
-        # Loading overlay
-        html.Div(id="results_loading_overlay", style={
-            "position": "fixed",
-            "top": "0",
-            "left": "0",
-            "right": "0",
-            "bottom": "0",
-            "backgroundColor": "rgba(0, 0, 0, 0.4)",
-            "display": "none",
-            "zIndex": "2000",
-            "justifyContent": "center",
-            "alignItems": "center",
-            "flexDirection": "column",
-        }, children=[
-            html.Div([
-                # Spinner using Unicode
-                html.Div("⏳", style={
-                    "fontSize": "64px",
-                    "marginBottom": "24px",
-                    "animation": "pulse 1s ease-in-out infinite",
-                }),
-                html.Div("Generating results...", style={
-                    "fontSize": "24px",
-                    "fontWeight": "900",
-                    "color": "white",
-                    "fontFamily": "Arial, sans-serif",
-                }),
-            ], style={
-                "textAlign": "center",
-            }),
-        ]),
     ])
 
 
@@ -716,37 +679,15 @@ app.layout = html.Div([
     dcc.Store(id="selected_recommendation", data=None),  # MEMBER 5: track focused flat (index or None)
     dcc.Store(id="results_lbs_result"),
     *lbs_stores(),
-    
 
     html.Div([
         html.Div([
             # MEMBER 7: title emoji and text
-            html.Img(src="/assets/HomeCompass.png", style={
-    "height": "175px",
-    "marginBottom": "2px"
-}),
+            html.H1(["🏠", html.Span("Downsizing Helper")], style=title_style),
             html.Div(id="step_indicator"),
         ], style=container_style),
         html.Div(id="main_content", style=container_style),
         html.Div(id="nav_area", style=container_style),
-        html.Div(id="results_list", style={"display": "none"}),
-        html.Iframe(id="results_map", style={"display": "none"}),
-        html.Div(id="results_loading_overlay", style={"display": "none"}),
-        html.Div(id="estimate_loading_overlay", style={"display": "none"}, children=[
-            html.Div([
-                html.Div("⏳", style={
-                    "fontSize": "64px",
-                    "marginBottom": "24px",
-                    "animation": "pulse 1s ease-in-out infinite",
-                }),
-                html.Div("Estimating price...", style={
-                    "fontSize": "24px",
-                    "fontWeight": "900",
-                    "color": "white",
-                    "fontFamily": "Arial, sans-serif",
-                }),
-            ], style={"textAlign": "center"}),
-        ]),
     ], style=base_page_style),
 
     # Comparison modal — MEMBER 8: Compare Units popup
@@ -790,44 +731,6 @@ app.layout = html.Div([
     ]),
 ])
 
-app.validation_layout = html.Div([
-    dcc.Store(id="step", data=1),
-    dcc.Store(id="sell_payload"),
-    dcc.Store(id="sell_geo"),
-    dcc.Store(id="sell_pred"),
-    dcc.Store(id="prefs_weights"),
-    dcc.Store(id="constraints"),
-    dcc.Store(id="recs_data"),
-    dcc.Store(id="selected_units", data=[]),
-    dcc.Store(id="modal_open", data=False),
-    dcc.Store(id="selected_recommendation", data=None),
-    dcc.Store(id="results_lbs_result"),
-    *lbs_stores(),
-
-    html.Div(id="step_indicator"),
-    html.Div(id="main_content"),
-    html.Div(id="nav_area"),
-    html.Button("← Back", id="btn_back"),
-    html.Button("Next →", id="btn_next"),
-    html.Button("Compare Units", id="btn_compare"),
-    html.Div(
-        id="comparison_modal",
-        children=[
-            html.Button("✕", id="btn_close_modal"),
-            html.Div(id="comparison_table_container"),
-        ],
-    ),
-
-    html.Div(id="results_list", style= {"display": "none"}),
-    html.Iframe(id="results_map", style= {"display": "none"}),
-    html.Div(id="results_loading_overlay", style= {"display": "none"}),
-
-    step_1_estimate(),
-    step_2_preferences(),
-    step_3_limits(),
-    step_4_lbs_page(),
-    step_5_results(),
-])
 
 # ============================================================================
 # CALLBACKS — MEMBER 5: owns all callback wiring
@@ -843,7 +746,7 @@ app.validation_layout = html.Div([
 )
 def render_step(step):
     step = int(step or 1)
-    pages = {1: step_1_estimate, 2: step_2_preferences, 3: step_3_limits, 4: step_4_lbs_page, 5: step_5_results,}
+    pages = {1: step_1_estimate, 2: step_2_preferences, 3: step_3_limits, 4: step_4_lbs_page, 5: step_5_results}
     return pages[step](), nav_row(step), step_indicator(step)
 
 
@@ -881,12 +784,11 @@ def is_valid_sg_postal(postal):
     Input("sell_postal", "value"),
     Input("sell_flat_type", "value"),
     Input("sell_area", "value"),
-    Input("sell_lease", "value"),
     prevent_initial_call=True,
 )
 
 # amanda: fixing autosave postal code between steps. (added the autosave_step1 function)
-def autosave_step1(postal, flat_type, area, lease):
+def autosave_step1(postal, flat_type, area):
     """Auto-save Step 1 form data and geocode the postal code."""
     postal = (postal or "").strip()
     flat_type = flat_type or "4 ROOM"
@@ -896,7 +798,6 @@ def autosave_step1(postal, flat_type, area, lease):
         "postal": postal,
         "flat_type": flat_type,
         "floor_area_sqm": float(area) if area not in (None, "") else None,
-        "remaining_lease": int(lease) if lease not in (None, "") else None,
     }
     
     # Validation checks
@@ -906,10 +807,6 @@ def autosave_step1(postal, flat_type, area, lease):
     
     if not is_valid_sg_postal(postal):
         msg = html.Div("⚠️ Invalid postal code. Must be 6 digits (e.g., 560123).", style=banner_warn)
-        return payload, None, msg
-    
-    if not area:
-        msg = html.Div("⚠️ Please enter your floor area.", style=banner_warn)
         return payload, None, msg
     
     # Try to geocode
@@ -943,10 +840,9 @@ def autosave_step1(postal, flat_type, area, lease):
     Output("sell_pred_box", "children"),
     Input("btn_estimate", "n_clicks"),
     State("sell_payload", "data"),
-    State("sell_geo", "data"),
     prevent_initial_call=True,
 )
-def estimate_price(n, sell_payload, sell_geo):
+def estimate_price(n, sell_payload):
     if not sell_payload or not sell_payload.get("postal"):
         return None, ""
 
@@ -956,77 +852,20 @@ def estimate_price(n, sell_payload, sell_geo):
         pred = mock_predict_price(sell_payload["postal"], sell_payload["flat_type"], sell_payload.get("floor_area_sqm"))
 
     # MEMBER 7: style price display — large number, confidence range
-    address_str = sell_geo.get("address", "") if sell_geo else ""
     box = html.Div([
         html.Div("Estimated selling price", style={"fontSize": "22px", "fontWeight": "950", "opacity": "0.85"}),
         html.Div(f"${pred['price']:,.0f}", style={
-            "fontSize": "52px",
+            "fontSize": "52px",           # MEMBER 7: main price font size
             "fontWeight": "950",
         }),
-        html.Div(address_str, style={"fontSize": "28px", "opacity": "0.7", "marginTop": "4px"}),
+        html.Div(f"Range: ${pred['low']:,.0f} – ${pred['high']:,.0f}", style={
+            "fontSize": "22px", "fontWeight": "900", "opacity": "0.85",
+        }),
+        html.Div(f"Town median (rough): ${pred.get('median_town', int(pred['price'] * 0.98)):,.0f}", style={
+            "fontSize": "22px", "fontWeight": "900", "opacity": "0.80",
+        }),
     ], style={"marginTop": "14px"})
-
     return pred, box
-
-
-@app.callback(
-    Output("estimate_loading_overlay", "style"),
-    Input("btn_estimate", "n_clicks"),
-    State("step", "data"),
-    prevent_initial_call=True,
-)
-def show_loading_on_estimate(n_clicks, step):
-    """Show loading overlay while estimate price is running on Step 1."""
-    if int(step or 1) == 1 and n_clicks:
-        return {
-            "display": "flex",
-            "position": "fixed",
-            "top": "0",
-            "left": "0",
-            "right": "0",
-            "bottom": "0",
-            "backgroundColor": "rgba(0, 0, 0, 0.4)",
-            "zIndex": "2000",
-            "justifyContent": "center",
-            "alignItems": "center",
-            "flexDirection": "column",
-        }
-    return {
-        "display": "none",
-        "position": "fixed",
-        "top": "0",
-        "left": "0",
-        "right": "0",
-        "bottom": "0",
-        "backgroundColor": "rgba(0, 0, 0, 0.4)",
-        "zIndex": "2000",
-        "justifyContent": "center",
-        "alignItems": "center",
-        "flexDirection": "column",
-    }
-
-
-@app.callback(
-    Output("estimate_loading_overlay", "style", allow_duplicate=True),
-    Input("sell_pred", "data"),
-    State("step", "data"),
-    prevent_initial_call=True,
-)
-def hide_loading_when_estimate_ready(sell_pred, step):
-    """Hide estimate loading overlay once estimate callback returns."""
-    return {
-        "display": "none",
-        "position": "fixed",
-        "top": "0",
-        "left": "0",
-        "right": "0",
-        "bottom": "0",
-        "backgroundColor": "rgba(0, 0, 0, 0.4)",
-        "zIndex": "2000",
-        "justifyContent": "center",
-        "alignItems": "center",
-        "flexDirection": "column",
-    }
 
 
 # ── Step 2: save weights ──
@@ -1055,7 +894,7 @@ def save_prefs(hc, tr, hw, rec):
 def save_limits(budget, min_rooms, towns):
     return {
         "max_budget": int(budget or 0),
-        "max_rooms": int(min_rooms or 3),
+        "min_rooms": int(min_rooms or 2),
         "preferred_towns": towns or [],
     }, html.Div("✅ Saved.", style=banner_ok)
 
@@ -1068,8 +907,7 @@ def save_limits(budget, min_rooms, towns):
     Output("results_map", "srcDoc"),
     Output("recs_data", "data"),
     Output("results_lbs_result", "data"),
-    Input("main_content", "children"),
-    State("step", "data"),
+    Input("btn_run_all", "n_clicks"),
     State("sell_payload", "data"),
     State("sell_geo", "data"),
     State("sell_pred", "data"),
@@ -1078,25 +916,18 @@ def save_limits(budget, min_rooms, towns):
     State("lbs_result", "data"),
     prevent_initial_call=True,
 )
-
-def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
-    if int(step or 1) != 5:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-
-    print(f"DEBUG prefs_w: {prefs_w}")
-    print(f"DEBUG constraints: {constraints}")
-    
+def run_results(n, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
     # Validation
-    if not lbs_result or not lbs_result.get("ok"):
-        return html.Div("Please complete Step 4: LBS details", style=banner_warn), dash.no_update, None, None
     if not sell_payload or not sell_payload.get("postal"):
-        return html.Div("Please go back to Step 1 and enter your postal code.", style=banner_warn), dash.no_update, None, None
+        return html.Div("Please go back to Step 1 and enter your postal code.", style=banner_warn), dash.no_update, None
     if not sell_geo:
-        return html.Div("We could not locate your flat. Please check postal code in Step 1.", style=banner_warn), dash.no_update, None, None
+        return html.Div("We could not locate your flat. Please check postal code in Step 1.", style=banner_warn), dash.no_update, None
     if not prefs_w:
-        return html.Div("Please complete Step 2.", style=banner_warn), dash.no_update, None, None
+        return html.Div("Please complete Step 2.", style=banner_warn), dash.no_update, None
     if not constraints:
-        return html.Div("Please complete Step 3.", style=banner_warn), dash.no_update, None, None
+        return html.Div("Please complete Step 3.", style=banner_warn), dash.no_update, None
+    if not lbs_result or not lbs_result.get("ok"):
+        return html.Div("Please complete Step 4: LBS details.", style=banner_warn), dash.no_update, None, None
 
     if not sell_pred:
         sell_pred = mock_predict_price(sell_payload["postal"], sell_payload["flat_type"], sell_payload.get("floor_area_sqm"))
@@ -1107,12 +938,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     #   recs = safe_post("/recommend", payload)
     #   if not recs:
     #       recs = mock_recommendations(constraints)
-
-    payload = {"constraints": constraints, "weights": prefs_w}
-    recs = safe_post("/recommend", payload)
-    if not recs:
-        recs = mock_recommendations(constraints)
-    
+    recs = mock_recommendations(constraints)
 
     # Geocode each recommendation
     for r in recs:
@@ -1305,7 +1131,11 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     # (built AFTER amenity fetching so nearest_* data is available)
     cards = []
     for i, r in enumerate(recs, start=1):
-        pg_url = r.get("listing_url", "https://www.propertyguru.com.sg")
+        pg_url = build_propertyguru_url(
+            town=r["town"], rooms=r["rooms"],
+            min_price=max(0, int(r["buy_price"] * 0.90)),
+            max_price=int(r["buy_price"] * 1.10),
+        )
 
         # Build amenity description strings
         hc = r.get("nearest_healthcare")
@@ -1323,112 +1153,55 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 id={"type": "unit_checkbox", "index": i - 1},
                 options=[{"label": "Compare this unit", "value": i - 1}],
                 value=[],
-                style={
-                    "marginBottom": "12px",
-                    "transform": "scale(1.4)",
-                    "transformOrigin": "left",
-                    "display": "inline-block",
-                },
-                labelStyle={
-                    "fontSize": "18px",
-                    "fontWeight": "700",
-                    "marginLeft": "4px",
-                    "cursor": "pointer",
-                },
+                style={"marginBottom": "12px"},
                 inline=True,
             ),
 
-            # MEMBER 8: card title (address only)
-            html.Div(f"#{i} • {r.get('address_from_url', r['town'])}", style={
+            # MEMBER 8: card title
+            html.Div(f"#{i} • {r['town']} • {r['rooms']} rooms", style={
                 "fontSize": "28px",           # MEMBER 8: title size
                 "fontWeight": "950",
-                "lineHeight": "1.2",
+            }),
+            # MEMBER 8: buy price
+            html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
+                "fontSize": "22px", "fontWeight": "900",
             }),
             # MEMBER 8: cash unlocked
             html.Div(f"Cash unlocked (estimate): ${r['cash_unlocked']:,.0f}", style={
-                "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.6",
+                "fontSize": "22px", "fontWeight": "900",
             }),
-            # MEMBER 8: buy price (always visible)
-            html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
-                "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.5", "marginTop": "4px",
+            # MEMBER 8: distance
+            html.Div(f"Distance from your flat: {r['dist_from_home_km']} km", style={
+                "fontSize": "20px", "fontWeight": "900", "opacity": "0.88",
             }),
-            # MEMBER 8: dropdown for additional details
-            html.Details([
-                html.Summary("Nearby Amenities ▼", style={
-                    "fontSize": "20px",
-                    "fontWeight": "900",
-                    "cursor": "pointer",
-                    "marginTop": "8px",
-                    "display": "inline-block",
-                    "padding": "6px 12px",
-                    "border": "1.5px solid #94a3b8",
-                    "borderRadius": "10px",
-                    "backgroundColor": "rgba(148, 163, 184, 0.1)",
-                }),
-                html.Div([
-                    html.Div(f"Distance from your flat: {r['dist_from_home_km']} km", style={
-                        "fontSize": "18px", "fontWeight": "900", "opacity": "0.88", "lineHeight": "1.6", "marginTop": "10px",
-                    }),
-                    html.Div("Nearest Amenities within 1km:", style={
-                        "fontSize": "18px", "fontWeight": "850", "opacity": "0.85",
-                        "marginTop": "6px",
-                    }),
-                    html.Ul([
-                        html.Li(f"🏥 {health_str}", style={"fontSize": "16px", "fontWeight": "800"}),
-                        html.Li(f"🍜 {hawker_str}", style={"fontSize": "16px", "fontWeight": "800"}),
-                        html.Li(f"🚆 {transport_str}", style={"fontSize": "16px", "fontWeight": "800"}),
-                        html.Li(f"🌳 {nature_str}", style={"fontSize": "16px", "fontWeight": "800"}),
-                    ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
-                ]),
-            ]),
-            html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
+            # MEMBER 8: amenity distances — bullet point list
+            html.Div("Nearest Amenities within 1km:", style={
+                "fontSize": "20px", "fontWeight": "850", "opacity": "0.85",
+                "marginTop": "6px",
+            }),
+            html.Ul([
+                html.Li(f"🏥 {health_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+                html.Li(f"🍜 {hawker_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+                html.Li(f"🚆 {transport_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+                html.Li(f"🌳 {nature_str}", style={"fontSize": "18px", "fontWeight": "800"}),
+            ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
+            # MEMBER 8: PropertyGuru link
+            html.A("🔎 View matching listings on PropertyGuru", href=pg_url, target="_blank", style={
                 "display": "inline-block",
                 "marginTop": "10px",
-                "fontSize": "18px",           # MEMBER 8: link size
+                "fontSize": "20px",           # MEMBER 8: link size
                 "fontWeight": "950",
                 "textDecoration": "none",
                 "color": "#0ea5e9",           # MEMBER 8: link colour
             }),
         ], style={**card_style, "marginTop": "14px"}))
+
     if lbs_result and lbs_result.get("ok"):
         cards.append(build_lbs_result_card(lbs_result, card_style))
+
     map_doc = leaflet_map_html(sell_geo["lat"], sell_geo["lon"], points, amenities, zoom=14)
 
     return html.Div([*cards]), map_doc, recs, lbs_result
-
-
-# ── Loading indicator for Step 5 ──
-
-@app.callback(
-    Output("results_loading_overlay", "style"),
-    Input("main_content", "children"),
-    State("step", "data"),
-    prevent_initial_call=True,
-)
-def show_loading_on_step5(main_content, step):
-    """Show loading overlay when entering Step 5."""
-    if int(step or 1) == 5:
-        return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
-    return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
-
-
-@app.callback(
-    Output("results_loading_overlay", "style", allow_duplicate=True),
-    Input("results_list", "children"),
-    State("step", "data"),
-    prevent_initial_call=True,
-)
-def hide_loading_when_results_ready(results_list_children, step):
-    """Hide loading overlay once results are populated."""
-    if int(step or 1) != 5:
-        return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
-    
-    # Hide loading if results_list has content
-    if results_list_children:
-        return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
-    
-    # Show loading if no content yet
-    return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
 
 
 # ── Reset ──
@@ -1443,12 +1216,11 @@ def hide_loading_when_results_ready(results_list_children, step):
     Output("recs_data", "data", allow_duplicate=True),
     Output("lbs_inputs", "data", allow_duplicate=True),
     Output("lbs_result", "data", allow_duplicate=True),
-    Output("results_lbs_result", "data", allow_duplicate=True),
     Input("btn_reset", "n_clicks"),
     prevent_initial_call=True,
 )
 def reset_all(n):
-    return 1, None, None, None, None, None, None, None, None, None
+    return 1, None, None, None, None, None, None, None, None
 
 
 # amanda: added this whole compare units segment for the comparison selection and panels
@@ -1595,14 +1367,12 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
     prevent_initial_call=True,
 )
 def update_selected_units(checkbox_values):
-    """Track which units are selected for comparison"""
-    if not checkbox_values:
-        return []
-    # checkbox_values is a list of lists, where each inner list contains the selected values
     selected_indices = []
     for values in checkbox_values:
         if values:
             selected_indices.extend(values)
+    print("CHECKBOX VALUES:", checkbox_values)
+    print("SELECTED INDICES:", selected_indices)
     return selected_indices
 
 
@@ -1864,7 +1634,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
 
         summary_options.append({
             "label": "LBS (Stay)",
-            "immediate_cash": float(net_lbs_value or 0),
+            "immediate_cash": float(net_lbs_value),
             "change_of_home": "No",
             "distance_from_current_flat": 0.0,
         })
@@ -2002,9 +1772,8 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
             style={"fontSize": "16px", "color": "#ef4444"},
         )
 
-
 # ============================================================================
 # RUN
 # ============================================================================
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=8052)
