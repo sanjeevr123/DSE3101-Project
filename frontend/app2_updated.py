@@ -60,6 +60,7 @@ def print_healthcare_themes(onemap_token):
 def _fetch_onemap_healthcare(lat, lon, radius_km=1.0, limit=9999):
     return get_nearby_amenities("healthcare", lat, lon, radius_km=radius_km, limit=limit)
 
+import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output, State
 import dash
 import requests
@@ -123,7 +124,7 @@ except ImportError:
         validate_lbs_for_navigation,
     )
 
-app = Dash(__name__, suppress_callback_exceptions=True)
+app = Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 register_lbs_callbacks(app, banner_ok=banner_ok, banner_warn=banner_warn, card_style=card_style)
@@ -1307,6 +1308,15 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     for i, r in enumerate(recs, start=1):
         pg_url = r.get("listing_url", "https://www.propertyguru.com.sg")
 
+        valuation = r.get("valuation_label", "N/A")
+        predicted = r.get("predicted_price", 0)
+        actual = r.get("buy_price", 0)
+        diff = actual - predicted
+        direction = "above" if diff > 0 else "below"
+        info_tooltip = f"Our model estimates this flat's value at ${predicted:,.0f}. The listed price is ${actual:,.0f}, which is {direction} our estimate."
+        valuation_color = {"Fair Value": "#22c55e", "Above Market": "#f97316", "Below Market": "#0ea5e9"}.get(valuation, "#94a3b8")
+        valuation_emoji = {"Fair Value": "✅ Good Value", "Above Market": "⚠️ Above Market", "Below Market": "💰 Below Market"}.get(valuation, valuation)
+
         # Build amenity description strings
         hc = r.get("nearest_healthcare")
         hw = r.get("nearest_hawker")
@@ -1337,7 +1347,53 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 },
                 inline=True,
             ),
-
+             html.Div([
+    html.Span(valuation_emoji, style={
+        "display": "inline-flex",
+        "alignItems": "center",
+        "padding": "6px 16px",
+        "borderRadius": "999px",
+        "backgroundColor": valuation_color,
+        "color": "white",
+        "fontSize": "16px",
+        "fontWeight": "800",
+        "marginRight": "10px",
+    }),
+    html.Span(f"~${abs(diff):,.0f} {direction} market estimate", style={
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "color": valuation_color,
+        "marginRight": "6px",
+    }),
+    html.Span("ⓘ", id=f"valuation_info_{i}", style={
+        "cursor": "pointer",
+        "fontSize": "16px",
+        "color": "#94a3b8",
+        "fontWeight": "900",
+    }),
+    dbc.Tooltip(
+        info_tooltip,
+        target=f"valuation_info_{i}",
+        placement="top",
+        style={
+            "backgroundColor": "white",
+            "color": "#1f2937",
+            "borderRadius": "8px",
+            "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+            "padding": "12px 14px",
+            "fontSize": "14px",
+            "fontWeight": "600",
+            "maxWidth": "300px",
+            "lineHeight": "1.5",
+        },
+    ),
+], style={
+    "display": "flex",
+    "alignItems": "center",
+    "marginBottom": "12px",
+    "flexWrap": "wrap",
+    "gap": "4px",
+}),
             # MEMBER 8: card title (address only)
             html.Div(f"#{i} • {r.get('address_from_url', r['town'])}", style={
                 "fontSize": "28px",           # MEMBER 8: title size
