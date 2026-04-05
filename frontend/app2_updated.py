@@ -195,7 +195,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     .legend-columns {{ display: flex; gap: 16px; align-items: flex-start; }}
     .legend-col {{ display: flex; flex-direction: column; }}
     .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }}
-    .amenity-icon {{ font-size: 18px; background: none; border: none; }}
+    .amenity-icon {{ font-size: 18px; background: none; border: none; opacity: 1.0; }}
         .legend-title {{ font-size: 15px; font-weight: 900; margin-bottom: 8px; }}
         .legend-note {{ font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 8px; }}
         .toggle-row {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; }}
@@ -292,7 +292,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     // Add markers for points (your flat + recommendations)
     points.forEach((p, index) => {{
       const icon = index === 0 ? homeIcon : recommendIcon;
-      const marker = L.marker([p.lat, p.lon], {{ icon: icon }}).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
+    const marker = L.marker([p.lat, p.lon], {{ icon: icon, opacity: 1.0 }}).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
       
       // MEMBER 6: Add to appropriate layer
       if (p.rec_index === -1) {{
