@@ -586,7 +586,7 @@ def step_3_limits():
                 id="lim_towns",
                 options=[
                     "Ang Mo Kio", "Bedok", "Bishan", "Bukit Batok", "Bukit Merah",
-                    "Bukit Panjang", "Choa Chu Kang", "Clementi", "Geylang",
+                    "Bukit Panjang", "Bukit Timah", "Central Area", "Choa Chu Kang", "Clementi", "Geylang",
                     "Hougang", "Jurong East", "Jurong West", "Kallang/Whampoa",
                     "Marine Parade", "Pasir Ris", "Punggol", "Queenstown",
                     "Sembawang", "Sengkang", "Serangoon", "Tampines",
@@ -718,8 +718,7 @@ app.layout = html.Div([
     dcc.Store(id="results_lbs_result"),
     *lbs_stores(),
 
-    html.Div(id="results_list", style={"display": "none"}),
-    html.Iframe(id="results_map", style={"display": "none"}),
+
     
 
     html.Div([
