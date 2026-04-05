@@ -717,6 +717,9 @@ app.layout = html.Div([
     dcc.Store(id="selected_recommendation", data=None),  # MEMBER 5: track focused flat (index or None)
     dcc.Store(id="results_lbs_result"),
     *lbs_stores(),
+
+    html.Div(id="results_list", style={"display": "none"}),
+    html.Iframe(id="results_map", style={"display": "none"}),
     
 
     html.Div([
@@ -2062,5 +2065,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
 # ============================================================================
 # RUN
 # ============================================================================
-if __name__ == "__main__":
-    app.run(debug=True)
+import os
+port = int(os.environ.get("PORT", 8050))
+app.run(host="0.0.0.0", port=port, debug=False)
+
