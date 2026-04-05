@@ -1249,16 +1249,16 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                         html.Li(f"🚆 {transport_str}", style={"fontSize": "16px", "fontWeight": "800"}),
                         html.Li(f"🌳 {nature_str}", style={"fontSize": "16px", "fontWeight": "800"}),
                     ], style={"margin": "4px 0 0 20px", "padding": "0", "opacity": "0.85"}),
-                    html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
-                        "display": "inline-block",
-                        "marginTop": "10px",
-                        "fontSize": "18px",           # MEMBER 8: link size
-                        "fontWeight": "950",
-                        "textDecoration": "none",
-                        "color": "#0ea5e9",           # MEMBER 8: link colour
-                    }),
                 ]),
             ]),
+            html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
+                "display": "inline-block",
+                "marginTop": "10px",
+                "fontSize": "18px",           # MEMBER 8: link size
+                "fontWeight": "950",
+                "textDecoration": "none",
+                "color": "#0ea5e9",           # MEMBER 8: link colour
+            }),
         ], style={**card_style, "marginTop": "14px"}))
     if lbs_result and lbs_result.get("ok"):
         cards.append(build_lbs_result_card(lbs_result, card_style))
