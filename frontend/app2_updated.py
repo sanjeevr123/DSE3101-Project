@@ -717,6 +717,8 @@ app.layout = html.Div([
     dcc.Store(id="results_lbs_result"),
     *lbs_stores(),
     
+    html.Div(id="results_list", style={"display": "none"}),
+    html.Iframe(id="results_map", style={"display": "none"}),
     html.Div([
         html.Div([
             # MEMBER 7: title emoji and text
