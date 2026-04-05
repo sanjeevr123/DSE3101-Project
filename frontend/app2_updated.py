@@ -613,6 +613,13 @@ def step_4_lbs_page():
 def step_5_results():
     return html.Div([
         html.Div("Step 5: Results", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div('Compare units in detail by selecting and clicking the "Compare Units" button at the bottom of the page.', style={
+            "fontSize": "18px",
+            "fontWeight": "700",
+            "opacity": "0.8",
+            "marginTop": "8px",
+            "marginBottom": "14px",
+        }),
         html.Div([
             # Left column: results — MEMBER 8: owns this section
             # amanda: 2 html.button() added
