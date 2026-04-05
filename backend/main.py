@@ -464,6 +464,7 @@ class SellRequest(BaseModel):
     postal:         str             = Field(..., examples=["560123"])
     flat_type:      str             = Field(..., examples=["4 ROOM"])
     floor_area_sqm: Optional[float] = Field(None, gt=0)
+    remaining_lease:  Optional[int]   = Field(None)
 
 
 class SellResponse(BaseModel):
@@ -523,7 +524,8 @@ def predict(body: PredictRequest):
             floor_area_sqm=body.floor_area_sqm,
             sold_year=body.sold_year,
             sold_month=body.sold_month,
-            listing_premium=body.listing_premium,
+            remaining_lease=body.remaining_lease,
+            listing_premium=body.listing_premium,   
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -569,8 +571,6 @@ def predict_sell(body: SellRequest):
     predictor = get_predictor()
 
     town = _town_from_postal(body.postal.strip())
-    print(f"DEBUG: postal={body.postal}, resolved_town={town}, "
-          f"flat_type={body.flat_type}, area={body.floor_area_sqm}")
 
     if not town:
         raise HTTPException(
@@ -584,6 +584,8 @@ def predict_sell(body: SellRequest):
                     "5 ROOM": 110.0, "EXECUTIVE": 130.0}
         floor_area = defaults.get(body.flat_type.upper().strip(), 90.0)
 
+    print(f"DEBUG: postal={body.postal}, resolved_town={town}, flat_type={body.flat_type.upper().strip()}, area={floor_area}, remaining_lease={body.remaining_lease}")
+
     now = datetime.now()
     try:
         result = predictor.predict(
@@ -592,7 +594,7 @@ def predict_sell(body: SellRequest):
             floor_area_sqm=floor_area,
             sold_year=now.year,
             sold_month=now.month,
-            listing_premium=1.0,
+            remaining_lease=body.remaining_lease,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -602,10 +604,9 @@ def predict_sell(body: SellRequest):
         price=price,
         low=int(price * 0.93),
         high=int(price * 1.07),
-        median_town=int(price * 0.98),
+        median_town=result["median_town"],
         town=town,
     )
-
 
 @app.post("/recommend", response_model=List[RecommendedListing], tags=["Recommendation"])
 def recommend(body: RecommendRequest):
