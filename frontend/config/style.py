@@ -42,10 +42,11 @@ label_style = {
 
 input_style_big = {
     "width": "100%",
-    "padding": "18px",                
-    "fontSize": "24px",              
-    "lineHeight": "32px",            
-    "height": "62px",      
+    "padding": "14px 18px",
+    "fontSize": "24px",
+    "lineHeight": "1.25",
+    "minHeight": "62px",
+    "height": "auto",
     "borderRadius": "18px",           
     "border": "2px solid rgba(15,23,42,0.18)",
 }
