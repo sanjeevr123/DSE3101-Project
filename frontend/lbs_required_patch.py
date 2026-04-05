@@ -14,7 +14,9 @@ STEP_META = [
     ("5", "Results"),
 ]
 
+
 DEFAULT_RETAINED_VALUE = 200_000.0
+DEFAULT_MONTHLY_PAYOUT_YEARS = 20
 
 
 def lbs_stores() -> List[dcc.Store]:
@@ -79,7 +81,14 @@ def compute_lbs_result(inputs: Dict[str, Any], sell_pred: Optional[Dict[str, Any
     if current_value <= 0:
         return {"ok": False, "message": "Current flat value is unavailable. Please complete Step 1 first."}
 
-    retained_value = min(DEFAULT_RETAINED_VALUE, current_value)
+    remaining_lease = _safe_float(inputs.get("remaining_lease"), 0)
+
+    # New logic: retain value proportional to lease retained (min 20 years assumption)
+    if remaining_lease > 0:
+        lease_ratio = min(1.0, max(0.2, remaining_lease / 99))
+        retained_value = current_value * lease_ratio
+    else:
+        retained_value = min(DEFAULT_RETAINED_VALUE, current_value)
 
     req_ra_1 = compute_required_ra(age_owner_1, num_owners)
     req_ra_2 = compute_required_ra(age_owner_2, num_owners) if num_owners == 2 else 0
@@ -94,6 +103,7 @@ def compute_lbs_result(inputs: Dict[str, Any], sell_pred: Optional[Dict[str, Any
     lbs_bonus = cpf_topup * FIXED_BONUS_RATE
     cash_total = remaining_after_topup * FIXED_PAYOUT_SHARE
     net_lbs = cash_total + lbs_bonus
+    estimated_monthly_payout = net_lbs / (DEFAULT_MONTHLY_PAYOUT_YEARS * 12)
     ra_household_final = ra_owner_1 + ra_owner_2 + cpf_topup + lbs_bonus
 
     return {
@@ -105,6 +115,7 @@ def compute_lbs_result(inputs: Dict[str, Any], sell_pred: Optional[Dict[str, Any
         "cpf_topup": round(cpf_topup, 2),
         "cash_total": round(cash_total, 2),
         "net_lbs": round(net_lbs, 2),
+        "estimated_monthly_payout": round(estimated_monthly_payout, 2),
         "lbs_bonus": round(lbs_bonus, 2),
         "ra_household_final": round(ra_household_final, 2),
         "required_ra_owner_1": req_ra_1,
@@ -134,8 +145,23 @@ def _metric_box(label: str, value: str) -> html.Div:
 
 def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_style_big: Dict[str, Any]) -> html.Div:
     return html.Div([
-        html.Div("Step 4: Enter LBS details", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("Step 4: Lease Buyback Scheme details", style={"fontSize": "36px", "fontWeight": "950"}),
+
         html.Div([
+            html.Div(
+                "The Lease Buyback Scheme (LBS) allows elderly homeowners to unlock cash from their flat while continuing to live in it.",
+                style={"fontSize": "20px", "fontWeight": "800", "lineHeight": "1.5", "marginBottom": "8px"},
+            ),
+            html.Div(
+                "Instead of moving to a smaller flat, you can retain part of your lease, receive a cash payout, and top up your CPF Retirement Account. "
+                "This is useful for households that prefer improving retirement support.",
+                style={"fontSize": "18px", "fontWeight": "600", "opacity": "0.82", "lineHeight": "1.5", "marginBottom": "18px"},
+            ),
+            html.Div(
+                "Fill in the details below to estimate the outcome of choosing the Lease Buyback Scheme.",
+                style={"fontSize": "16px", "fontWeight": "700", "opacity": "0.78", "marginBottom": "14px"},
+            ),
+
             html.Div("Number of owners", style=label_style),
             dcc.Dropdown(
                 id="lbs_num_owners",
@@ -154,7 +180,7 @@ def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_st
             html.Div(style={"height": "14px"}),
 
             html.Div([
-                html.Span("Owner 1 current RA ($)", style=label_style),
+                html.Span("Owner 1 CPF Retirement Account (RA) balance ($)", style=label_style),
                 html.Span(
                     "ⓘ",
                     id="owner1-ra-info",
@@ -169,7 +195,7 @@ def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_st
             ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
 
             dbc.Tooltip(
-                "This refers to the amount currently in the Retirement Account (RA). Please check the exact value on the CPF website after logging in with Singpass.",
+                "This refers to the amount currently in the CPF Retirement Account (RA). Please check the exact value on the CPF website after logging in with Singpass.",
                 target="owner1-ra-info",
                 placement="right",
                 style={
@@ -198,7 +224,7 @@ def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_st
                 html.Div(style={"height": "14px"}),
 
                 html.Div([
-                    html.Span("Owner 2 current RA ($)", style=label_style),
+                    html.Span("Owner 2 CPF Retirement Account (RA) balance ($)", style=label_style),
                     html.Span(
                         "ⓘ",
                         id="owner2-ra-info",
@@ -213,7 +239,7 @@ def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_st
                 ], style={"display": "flex", "alignItems": "center", "gap": "6px"}),
 
                 dbc.Tooltip(
-                    "This refers to the amount currently in the Retirement Account (RA). Please check the exact value on the CPF website after logging in with Singpass.",
+                    "This refers to the amount currently in the CPF Retirement Account (RA). Please check the exact value on the CPF website after logging in with Singpass.",
                     target="owner2-ra-info",
                     placement="right",
                     style={
@@ -237,21 +263,13 @@ def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_st
                 html.Div(style={"height": "14px"}),
             ], style={"display": "none"}),
 
-            html.Div(
-                f"Retained value is handled internally in the prototype (currently set to ${DEFAULT_RETAINED_VALUE:,.0f}). "
-                "LBS outcomes below are estimated using fixed internal policy assumptions, so users only need to enter ownership, age, and current RA balances.",
-                style={"fontSize": "16px", "fontWeight": "700", "opacity": "0.78", "marginBottom": "14px"},
-            ),
-
             html.Div(id="lbs_saved_banner"),
             html.Div(id="lbs_step_summary", style={"marginTop": "12px"}),
         ], style=card_style),
     ])
 
-
 def build_results_lbs_summary(lbs_result: Optional[Dict[str, Any]], card_style: Dict[str, Any]) -> html.Div:
     return html.Div()
-
 
 def build_lbs_card_block(rec: Dict[str, Any], lbs_result: Optional[Dict[str, Any]]) -> html.Div:
     return html.Div()
@@ -262,19 +280,55 @@ def build_lbs_result_card(lbs_result: Optional[Dict[str, Any]], card_style: Dict
         return html.Div()
 
     return html.Div([
-        html.Div("#4 • Stay in current flat • LBS", style={"fontSize": "28px", "fontWeight": "950"}),
-        html.Div("Lease Buyback Scheme scenario", style={"fontSize": "18px", "fontWeight": "800", "opacity": 0.8, "marginTop": "4px"}),
-        html.Div(f"Comparable cash unlocked: ${lbs_result['net_lbs']:,.0f}", style={"fontSize": "22px", "fontWeight": "900", "marginTop": "10px"}),
-        html.Div("LBS output summary", style={"fontSize": "20px", "fontWeight": "900", "marginTop": "10px"}),
-        html.Ul([
-            html.Li(f"Cash total: ${lbs_result['cash_total']:,.0f}", style={"fontSize": "18px", "fontWeight": "800"}),
-            html.Li(f"Net LBS: ${lbs_result['net_lbs']:,.0f}", style={"fontSize": "18px", "fontWeight": "800"}),
-            html.Li(f"LBS bonus: ${lbs_result['lbs_bonus']:,.0f}", style={"fontSize": "18px", "fontWeight": "800"}),
-            html.Li(f"RA household final: ${lbs_result['ra_household_final']:,.0f}", style={"fontSize": "18px", "fontWeight": "800"}),
-        ], style={"margin": "6px 0 0 20px", "padding": "0", "opacity": "0.9"}),
-        html.Div("This option represents staying in the current flat under LBS" \
-        "", style={"fontSize": "16px", "fontWeight": "700", "opacity": 0.72, "marginTop": "12px"}),
-    ], style={**card_style, "marginTop": "14px", "border": "2px solid rgba(139,92,246,0.18)"})
+        html.Div("#4 • Stay in current flat • LBS", style={
+            "fontSize": "28px",
+            "fontWeight": "950",
+        }),
+
+        html.Div(f"Cash unlocked (estimate): ${lbs_result['net_lbs']:,.0f}", style={
+            "fontSize": "22px",
+            "fontWeight": "900",
+            "lineHeight": "1.6",
+        }),
+
+        html.Div(f"Estimated monthly payout: ${lbs_result.get('estimated_monthly_payout', 0):,.0f}/month", style={
+            "fontSize": "22px",
+            "fontWeight": "900",
+            "lineHeight": "1.5",
+            "marginTop": "4px",
+        }),
+
+        html.Details([
+            html.Summary("LBS Breakdown ▼", style={
+                "fontSize": "20px",
+                "fontWeight": "900",
+                "cursor": "pointer",
+                "marginTop": "8px",
+                "display": "inline-block",
+                "padding": "6px 12px",
+                "border": "1.5px solid #94a3b8",
+                "borderRadius": "10px",
+                "backgroundColor": "rgba(148, 163, 184, 0.1)",
+            }),
+
+            html.Div([
+                html.Ul([
+                    html.Li(f"Cash total: ${lbs_result['cash_total']:,.0f}", style={"fontSize": "18px", "fontWeight": "900"}),
+                    html.Li(f"CPF top-up: ${lbs_result['cpf_topup']:,.0f}", style={"fontSize": "18px", "fontWeight": "900"}),
+                    html.Li(f"LBS bonus: ${lbs_result['lbs_bonus']:,.0f}", style={"fontSize": "18px", "fontWeight": "900"}),
+                    html.Li(f"RA household final: ${lbs_result['ra_household_final']:,.0f}", style={"fontSize": "18px", "fontWeight": "900"}),
+                ], style={"margin": "8px 0 0 20px"}),
+            ]),
+        ]),
+
+        html.Div("This option represents staying in the current flat under LBS", style={
+            "fontSize": "16px",
+            "fontWeight": "700",
+            "opacity": 0.72,
+            "marginTop": "12px",
+        }),
+
+    ], style={**card_style, "marginTop": "14px"})
 
 
 def register_lbs_callbacks(app, banner_ok: Dict[str, Any], banner_warn: Dict[str, Any], card_style: Optional[Dict[str, Any]] = None):
@@ -305,23 +359,14 @@ def register_lbs_callbacks(app, banner_ok: Dict[str, Any], banner_warn: Dict[str
             "ra_owner_1": _safe_float(ra_owner_1, 0),
             "age_owner_2": int(_safe_float(age_owner_2, 0)) if int(_safe_float(num_owners, 1)) == 2 else None,
             "ra_owner_2": _safe_float(ra_owner_2, 0) if int(_safe_float(num_owners, 1)) == 2 else 0,
+            "remaining_lease": (sell_pred or {}).get("remaining_lease", 0),
         }
         result = compute_lbs_result(inputs, sell_pred)
 
         if not result.get("ok"):
             return inputs, result, html.Div(result["message"], style=banner_warn), html.Div()
 
-        summary = html.Div([
-            html.Div("Preview of compulsory LBS outputs", style={"fontSize": "20px", "fontWeight": "900", "marginBottom": "8px"}),
-            html.Div([
-                _metric_box("Cash total", f"${result['cash_total']:,.0f}"),
-                _metric_box("Net LBS", f"${result['net_lbs']:,.0f}"),
-                _metric_box("LBS bonus", f"${result['lbs_bonus']:,.0f}"),
-                _metric_box("RA household final", f"${result['ra_household_final']:,.0f}"),
-            ], style={"display": "grid", "gridTemplateColumns": "repeat(2, minmax(0,1fr))", "gap": "12px"}),
-        ], style={"marginTop": "8px"})
-
-        return inputs, result, html.Div("✅ LBS details saved.", style=banner_ok), summary
+        return inputs, result, html.Div("✅ LBS details saved.", style=banner_ok), html.Div()
 
 
 def validate_lbs_for_navigation(step: int, lbs_result: Optional[Dict[str, Any]]):

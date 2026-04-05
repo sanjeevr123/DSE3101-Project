@@ -717,8 +717,7 @@ app.layout = html.Div([
     dcc.Store(id="results_lbs_result"),
     *lbs_stores(),
     
-    html.Div(id="results_list", style={"display": "none"}),
-    html.Iframe(id="results_map", style={"display": "none"}),
+
     html.Div([
         html.Div([
             # MEMBER 7: title emoji and text
@@ -730,6 +729,9 @@ app.layout = html.Div([
         ], style=container_style),
         html.Div(id="main_content", style=container_style),
         html.Div(id="nav_area", style=container_style),
+        html.Div(id="results_list", style={"display": "none"}),
+        html.Iframe(id="results_map", style={"display": "none"}),
+        html.Div(id="results_loading_overlay", style={"display": "none"}),
     ], style=base_page_style),
 
     # Comparison modal — MEMBER 8: Compare Units popup
@@ -773,6 +775,43 @@ app.layout = html.Div([
     ]),
 ])
 
+app.validation_layout = html.Div([
+    dcc.Store(id="step", data=1),
+    dcc.Store(id="sell_payload"),
+    dcc.Store(id="sell_geo"),
+    dcc.Store(id="sell_pred"),
+    dcc.Store(id="prefs_weights"),
+    dcc.Store(id="constraints"),
+    dcc.Store(id="recs_data"),
+    dcc.Store(id="selected_units", data=[]),
+    dcc.Store(id="modal_open", data=False),
+    dcc.Store(id="selected_recommendation", data=None),
+    dcc.Store(id="results_lbs_result"),
+    *lbs_stores(),
+
+    html.Div(id="step_indicator"),
+    html.Div(id="main_content"),
+    html.Div(id="nav_area"),
+    html.Div(id="results_list"),
+    html.Iframe(id="results_map"),
+    html.Div(id="results_loading_overlay"),
+    html.Button("← Back", id="btn_back"),
+    html.Button("Next →", id="btn_next"),
+    html.Button("Compare Units", id="btn_compare"),
+    html.Div(
+        id="comparison_modal",
+        children=[
+            html.Button("✕", id="btn_close_modal"),
+            html.Div(id="comparison_table_container"),
+        ],
+    ),
+
+    step_1_estimate(),
+    step_2_preferences(),
+    step_3_limits(),
+    step_4_lbs_page(),
+    step_5_results(),
+])
 
 # ============================================================================
 # CALLBACKS — MEMBER 5: owns all callback wiring
