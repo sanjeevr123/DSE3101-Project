@@ -592,7 +592,7 @@ def predict_sell(body: SellRequest):
             floor_area_sqm=floor_area,
             sold_year=now.year,
             sold_month=now.month,
-            listing_premium=1.10,
+            listing_premium=1.0,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
