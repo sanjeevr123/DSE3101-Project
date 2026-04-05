@@ -500,6 +500,8 @@ class RecommendedListing(BaseModel):
     buy_price:        int
     listing_url:      str
     address_from_url: str
+    predicted_price:  int = 0
+    valuation_label:  str = "N/A"
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -607,15 +609,8 @@ def predict_sell(body: SellRequest):
         median_town=result["median_town"],
         town=town,
     )
-
 @app.post("/recommend", response_model=List[RecommendedListing], tags=["Recommendation"])
 def recommend(body: RecommendRequest):
-    """
-    Filter PropertyGuru listings by constraints, score by SAI, return top 3.
-
-
-    """
-
     print(f"\n{'='*60}")
     print(f"DEBUG /recommend")
     print(f"  Constraints: budget={body.constraints.max_budget}, max_rooms={body.constraints.max_rooms}, towns={body.constraints.preferred_towns}")
@@ -627,22 +622,15 @@ def recommend(body: RecommendRequest):
 
     df = _pg_df.copy()
 
-    # ── Drop rows missing required fields ─────────────────────────────────────
     df = df.dropna(subset=["buy_price", "postal", "latitude", "longitude",
                             "nearest_mrt_distance_m", "nearest_clinic_distance_m",
                             "nearest_park_distance_m", "nearest_hawker_distance_m"])
 
-    # ── Filter: budget ────────────────────────────────────────────────────────
     df = df[df["buy_price"] <= body.constraints.max_budget]
-
-    # ── Filter: min rooms ─────────────────────────────────────────────────────
     df = df[df["room_count"] == body.constraints.max_rooms]
 
-    # ── Filter: preferred towns (case-insensitive partial match) ──────────────
     if body.constraints.preferred_towns:
-        pattern = "|".join(
-            re.escape(t.strip()) for t in body.constraints.preferred_towns
-        )
+        pattern = "|".join(re.escape(t.strip()) for t in body.constraints.preferred_towns)
         df = df[df["hdb_town"].str.contains(pattern, case=False, na=False)]
 
     if df.empty:
@@ -650,9 +638,9 @@ def recommend(body: RecommendRequest):
             status_code=404,
             detail="No listings found matching your constraints. Try increasing budget or relaxing filters.",
         )
-    # Keep cheapest listing per block
+
     df = df.sort_values("buy_price").drop_duplicates(subset=["onemap_full_address"], keep="first")
-    # ── Calculate SAI for each listing (mirrors notebook exactly) ──────────────
+
     weights = {
         "clinic": body.weights.clinic,
         "hawker": body.weights.hawker,
@@ -665,11 +653,42 @@ def recommend(body: RecommendRequest):
         lambda row: _calculate_sai(row.to_dict(), weights, _pg_max_counts), axis=1
     )
 
-    # ── Top 3 by SAI ──────────────────────────────────────────────────────────
     top3 = df.sort_values(by=["sai_score", "buy_price"], ascending=[False, True]).head(3)
 
+    room_to_flat = {2: "2 ROOM", 3: "3 ROOM", 4: "4 ROOM", 5: "5 ROOM", 6: "EXECUTIVE"}
+    predictor = get_predictor()
+
     results = []
+    print(f"\nDEBUG SAI Scores (top 3):")
     for _, row in top3.iterrows():
+        # ── Fair value calculation ────────────────────────────────────────────
+        flat_type = room_to_flat.get(int(row["room_count"]), "4 ROOM")
+        try:
+            pred = predictor.predict(
+                town=str(row["hdb_town"]).upper(),
+                flat_type=flat_type,
+                floor_area_sqm=float(row.get("floor_area_sqm", 90.0)),
+                sold_year=datetime.now().year,
+                sold_month=datetime.now().month,
+            )
+            predicted_price = int(pred["asking_price"])
+            actual = int(row["buy_price"])
+            diff_pct = (actual - predicted_price) / predicted_price * 100
+            if diff_pct > 10:
+                valuation_label = "Above Market"
+            elif diff_pct < -10:
+                valuation_label = "Below Market"
+            else:
+                valuation_label = "Fair Value"
+        except Exception as e:
+            predicted_price = 0
+            valuation_label = "N/A"
+            print(f"  [WARN] Valuation failed for {row['hdb_town']}: {e}")
+
+        print(f"  {row['address_from_url']} | town={row['hdb_town']} | rooms={int(row['room_count'])} | price=${int(row['buy_price']):,} | SAI={row['sai_score']} | predicted=${predicted_price:,} | valuation={valuation_label}")
+        print(f"    distances: clinic={row.get('nearest_clinic_distance_m','N/A'):.0f}m, hawker={row.get('nearest_hawker_distance_m','N/A'):.0f}m, park={row.get('nearest_park_distance_m','N/A'):.0f}m, mrt={row.get('nearest_mrt_distance_m','N/A'):.0f}m")
+        print(f"    counts: clinic={row.get('num_clinic_within_1000m','N/A')}, hawker={row.get('num_hawker_within_1000m','N/A')}, park={row.get('num_park_within_1000m','N/A')}, mrt={row.get('num_mrt_within_1000m','N/A')}")
+
         results.append(RecommendedListing(
             town=str(row["hdb_town"]),
             rooms=int(row["room_count"]),
@@ -677,12 +696,9 @@ def recommend(body: RecommendRequest):
             buy_price=int(row["buy_price"]),
             listing_url=str(row["listing_url"]),
             address_from_url=str(row["onemap_full_address"]),
+            predicted_price=predicted_price,
+            valuation_label=valuation_label,
         ))
-    print(f"\nDEBUG SAI Scores (top 3):")
-    for _, row in top3.iterrows():
-        print(f"  {row['address_from_url']} | town={row['hdb_town']} | rooms={int(row['room_count'])} | price=${int(row['buy_price']):,} | SAI={row['sai_score']}")
-        print(f"    distances: clinic={row.get('nearest_clinic_distance_m','N/A'):.0f}m, hawker={row.get('nearest_hawker_distance_m','N/A'):.0f}m, park={row.get('nearest_park_distance_m','N/A'):.0f}m, mrt={row.get('nearest_mrt_distance_m','N/A'):.0f}m")
-        print(f"    counts: clinic={row.get('num_clinic_within_1000m','N/A')}, hawker={row.get('num_hawker_within_1000m','N/A')}, park={row.get('num_park_within_1000m','N/A')}, mrt={row.get('num_mrt_within_1000m','N/A')}")
-    print(f"{'='*60}\n")
 
+    print(f"{'='*60}\n")
     return results
