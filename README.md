@@ -66,18 +66,13 @@ Understanding HDB resale prices is crucial for Singapore residents, as HDB flats
 1. **HDB Resale Flat Prices** (2017-2024)
    - Source: [data.gov.sg](https://beta.data.gov.sg/)
    - Records: ~150,000 transactions
-   - Features: Town, flat type, floor area, lease commence date, resale price
+   - Features: Town, flat type, floor area, lease commence date, resale price, RPI
 
 2. **Amenities & Infrastructure**
    - Source: [OneMap API](https://www.onemap.gov.sg/)
    - Data: MRT stations, schools, shopping malls, parks
    - Method: Distance calculations via API
 
-3. **Demographic Data**
-   - Source: [SingStat](https://www.singstat.gov.sg/)
-   - Data: General Household Survey, Census (2010, 2015, 2020)
-   - Features: Population age, income levels
-
-4. **Planning Boundaries**
+3. **Planning Boundaries**
    - Source: [data.gov.sg](https://beta.data.gov.sg/collections/1749/view)
    - Data: Geographical boundaries of planning regions
