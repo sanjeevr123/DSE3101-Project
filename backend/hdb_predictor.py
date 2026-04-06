@@ -1,8 +1,20 @@
 # hdb_predictor.py
 
+import os
+
 import joblib
 import numpy as np
 import pandas as pd
+
+# Navigate to your project
+os.chdir('/workspaces/DSE3101-Project')
+
+# Verify you're in the right place
+print("Current directory:", os.getcwd())
+print("Contents:", os.listdir('.'))
+
+# Navigate to data/raw folder
+os.chdir('data/raw')
 
 # Load artifacts once when the module is imported
 artifacts        = joblib.load('hdb_model_artifacts_v2.pkl')
