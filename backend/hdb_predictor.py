@@ -229,7 +229,7 @@ def predict_price_user(town, flat_type, floor_area, sold_year,
     # Return price with +/- (rounded mape)% confidence range
     # This honestly reflects the uncertainty from model
     # ============================================================
-    mape_val = 0.05  # Use a fixed MAPE of 5% for user-facing estimator to reflect higher uncertainty from imputation
+    mape_val = 0.10  # Use a fixed MAPE of 10% for user-facing estimator to reflect higher uncertainty from imputation
     return {
         'estimated_price': round(estimated_price, 2),
         'lower_bound':     round(estimated_price * (1-mape_val), 2),
