@@ -17,6 +17,7 @@ You can access the deployed app **[HomeCompass here](https://homecompassapp.onre
 
 ## System Workflow
 
+```text
 User Input (postal code, flat type, floor area, remaining lease, lifestyle preferences)
         │
         ▼
@@ -40,6 +41,7 @@ Frontend (Dash) — 5-step guided interface
   Step 4: View LBS estimate; set lifestyle and amenity priority weights
   Step 5: View top 3 listing recommendations with SAI scores,
           valuation labels, interactive map, and direct PropertyGuru links
+```
 
 ---
 
