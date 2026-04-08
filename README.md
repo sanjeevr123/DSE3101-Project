@@ -188,7 +188,20 @@ The live RPI is fetched from the data.gov.sg API at server startup, ensuring pre
 - Geospatial features — distances to and counts of nearby amenities (MRT, hawker centres, parks, clinics, community clubs) were pre-computed by geocoding each flat's address via OneMap and calculating distances against Singapore's public amenity datasets
 - Sample weights — transactions are assigned linearly increasing weights by recency, ranging from 1.0 (oldest year) to 2.0 (most recent training year), reflecting that recent market conditions are more representative of current pricing
 
+## Project Structure
 
+```text
+DSE3101-Project/
+├── backend/
+│   ├── main.py
+│   ├── model.py
+│   └── hdb_predictor.py
+├── frontend/
+│   ├── app.py
+│   └── services/
+└── data/
+    └── raw/
+```
 
 
 ## API Reference
