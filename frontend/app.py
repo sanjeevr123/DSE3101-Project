@@ -1,74 +1,39 @@
-# app.py
-# ============================================================================
-# HDB Downsizing Helper — mock
-# ============================================================================
-# HOW TO RUN:
-#   pip install dash requests
-#   python app.py
-#   Open http://127.0.0.1:8050
-#
-# TEAM OWNERSHIP:
-#   Member 5 (FE Lead)  — state management, callbacks, backend integration
-#   Member 6 (Map)      — Leaflet map, markers, geocoding
-#   Member 7 (UI/UX)    — all styling, layouts, step indicator, form components
-#   Member 8 (Output)   — Step 4 result cards, PropertyGuru links, equity display
-#
-# Look for comments tagged with your member number, e.g.:
-#   # MEMBER 7: adjust font size here
-#   # MEMBER 6: change marker colour here
-#   # MEMBER 8: update card layout here
-#   # MEMBER 5: replace with real backend call
-# ============================================================================
+"""
+Run locally:
+pip install dash requests (for frontend)   --- changed to requirements.txt
+python app.py
+Open http://127.0.0.1:8050
 
+Distribution of work:
+- Sharuz: state management, callbacks, backend integration
+- Nat: Leaflet map, markers n geocoding
+- Amanda: UI, styling, layouts, step indicator, form components
+- Harsha: LBS computation and results output 
+"""
+# 
+# Imports and app configuration
+# 
 
-import logging
-from dash import Dash, html, dcc, Input, Output, State
-import dash
-import requests
-import time
-import json as json_module
 import csv
 import io
+import json as json_module
+import logging
+import os
 import re
+import time
+
+import dash
+import dash_bootstrap_components as dbc
+import requests
+from dash import Dash, Input, Output, State, dcc, html
+
 logging.basicConfig(level=logging.DEBUG, force=True)
 logger = logging.getLogger("amenity_debug")
 logger.setLevel(logging.DEBUG)
 logger.debug("[Startup] amenity_debug logger is active.")
 
-# Utility: Print all OneMap themes related to healthcare for QUERYNAME discovery
-def print_healthcare_themes(onemap_token):
-    """
-    Prints all OneMap themes whose name or description contains 'health', 'hospital', or 'clinic'.
-    Pass your OneMap API token as the argument.
-    """
-    url = "https://www.onemap.gov.sg/api/common/thematic/getAllThemesInfo"
-    headers = {"Authorization": f"Bearer {onemap_token}"}
-    try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        print("\n[OneMap] Healthcare-related themes:")
-        for theme in data.get("THEMES", []):
-            name = theme.get("THEMENAME", "")
-            desc = theme.get("DESCRIPTION", "")
-            queryname = theme.get("QUERYNAME", "")
-            if any(x in (name+desc).lower() for x in ["health", "hospital", "clinic"]):
-                print(f"  - Name: {name}\n    Description: {desc}\n    QUERYNAME: {queryname}\n")
-        print("[Done] Use the QUERYNAME(s) above in your amenity fetch logic.")
-    except Exception as e:
-        print(f"[Error] Could not fetch OneMap themes: {e}")
-def _fetch_onemap_healthcare(lat, lon, radius_km=1.0, limit=9999):
-    return get_nearby_amenities("healthcare", lat, lon, radius_km=radius_km, limit=limit)
-
-import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Input, Output, State
-import dash
-import requests
-import time
-import json as json_module
-import csv
-import io
 from config.settings import (
+
     BACKEND_URL,
     TIMEOUT_SEC,
     ONEMAP_SEARCH_URL,
@@ -129,32 +94,24 @@ server = app.server
 
 register_lbs_callbacks(app, banner_ok=banner_ok, banner_warn=banner_warn, card_style=card_style)
 
-# ============================================================================
-# BACKEND / API UTILITIES — imported from services/api.py
-# ============================================================================
+# 
+# Backend and API utilities
+# 
 
-
-# ============================================================================
-# MAP — MEMBER 6: this is your main section
-# ============================================================================
-
+# 
+# Map rendering helpers
+# 
 
 def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
-    """
-    Generate a complete Leaflet HTML page as a string for iframe injection.
-    MEMBER 6: customise tile layer, marker styles, legend, popups, zoom.
-    
-    Points format: each point can have optional 'rec_index' to group recommendations into layers
-    """
     def js_point(p):
         return {
             "name": p["name"], 
             "lat": p["lat"], 
             "lon": p["lon"], 
             "color": p.get("color", "#0ea5e9"),
-            "price": p.get("price", "N/A"),        # Adding price information
-            "distance": p.get("distance", "N/A"),  # Adding distance information
-            "rec_index": p.get("rec_index", -1),   # MEMBER 6: -1 for your flat, >=0 for recommendations
+            "price": p.get("price", "N/A"),
+            "distance": p.get("distance", "N/A"),
+            "rec_index": p.get("rec_index", -1),
         }
 
     def js_am(a):
@@ -165,7 +122,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
             "kind": a.get("kind", "Amenity"),
             "address": a.get("address"),  # None for transport amenities
             "distance": a.get("distance", "N/A"),
-            "rec_index": a.get("rec_index", -1),   # MEMBER 6: which recommendation this amenity belongs to
+            "rec_index": a.get("rec_index", -1),
         }
 
     points_js = json_module.dumps([js_point(p) for p in points])
@@ -184,9 +141,9 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
   <style>
     html, body {{ height: 100%; margin: 0; }}
     #map {{ height: 100%; width: 100%; border-radius: 18px; }}
-    /* MEMBER 6: adjust popup font styling */
+    /* Popup styling */
     .leaflet-popup-content {{ font-size: 16px; font-weight: 700; }}
-    /* MEMBER 6: adjust legend position, colours, font */
+    /* Legend styling */
     .legend {{
       position: absolute; bottom: 12px; left: 12px; z-index: 999;
       background: rgba(255,255,255,0.92); padding: 10px 12px;
@@ -210,7 +167,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
 </head>
 <body>
   <div id="map"></div>
-  <!-- MEMBER 6: update legend labels and dot colours -->
+  <!-- Legend and layer controls -->
     <div class="legend" id="layer-controls">
         <div class="legend-columns">
           <div class="legend-col">
@@ -243,8 +200,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     const center = [{center_lat}, {center_lon}];
     const map = L.map('map', {{ zoomControl: true }}).setView(center, {zoom});
 
-
-    // MEMBER 6: tile layer — could switch to OneMap tiles
+    // Base tile layer
     L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
       maxZoom: 19, attribution: '&copy; OpenStreetMap'
     }}).addTo(map);
@@ -252,7 +208,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     const points = {points_js};
     const amenities = {amen_js};
     
-    // MEMBER 6: Create nested layer groups for amenities within each recommendation
+    // Amenity layers are grouped by recommendation and amenity type.
     const recAmenityLayers = {{}};  // recAmenityLayers[recIdx][amenityKind] = layer
     const uniqueRecIndices = [...new Set(points.filter(p => p.rec_index >= 0).map(p => p.rec_index))];
     
@@ -265,7 +221,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
         }};
     }});
     
-    // MEMBER 6: Create layer groups for each recommendation (flat markers)
+    //Separate marker layer for each recommended flat.
     const recLayers = {{}};
     uniqueRecIndices.forEach(idx => {{
         recLayers[idx] = L.layerGroup().addTo(map);
@@ -290,20 +246,20 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       popupAnchor: [1, -34],
     }});
 
-    // Add markers for points (your flat + recommendations)
+    //Add markers for points (your flat n recommendations)
     points.forEach((p, index) => {{
       const icon = index === 0 ? homeIcon : recommendIcon;
     const marker = L.marker([p.lat, p.lon], {{ icon: icon, opacity: 1.0 }}).bindPopup(`<b>${{p.name}}</b><br>Estimated price: $${{p.price}}<br>Distance from your flat: ${{p.distance}}`);
       
-      // MEMBER 6: Add to appropriate layer
+      // Keep the current flat always visible; recommendations live in toggleable layers.
       if (p.rec_index === -1) {{
         marker.addTo(map);  // Your flat always visible
       }} else {{
-        marker.addTo(recLayers[p.rec_index]);  // Recommendation on its layer
+        marker.addTo(recLayers[p.rec_index]);  // Recommendation on layer
       }}
     }});
 
-    // Add markers for amenities (tied to specific recommendations)
+    //Add markers for amenities 
     amenities.forEach(a => {{
       let iconHtml = '';
       switch(a.kind) {{
@@ -321,7 +277,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       }});
       const marker = L.marker([a.lat, a.lon], {{ icon: amenityIcon, opacity: 1.0 }}).bindPopup(`<b>${{a.name}}</b>${{a.address ? '<br>Address: ' + a.address : ''}}<br>Distance: ${{a.distance}} from your HDB`);
       
-      // MEMBER 6: Add amenity to the nested layer group for its recommendation
+      //Amenities attached to corresponding recommendation layer.
       if (a.rec_index >= 0 && recAmenityLayers[a.rec_index]) {{
         const layer = recAmenityLayers[a.rec_index][a.kind];
         if (layer) {{
@@ -330,7 +286,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
       }}
     }});
     
-    // MEMBER 6: Generate toggles for recommendations in legend
+    //Build recommendation toggles from the plotted points.
     const recToggleContainer = document.getElementById('recommendation-toggles');
     points.forEach((p, idx) => {{
         if (p.rec_index >= 0) {{
@@ -344,8 +300,8 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
         }}
     }});
 
-    // Event listeners for recommendation toggles
-    // When a recommendation is toggled, toggle BOTH its marker AND its amenities
+    //Event listeners for recommendation toggles
+    //When a recommendation is toggled, can toggle both the marker and respective amenities
     document.querySelectorAll('#layer-controls input[data-rec-index]').forEach(cb => {{
         cb.addEventListener('change', (event) => {{
             const recIdx = parseInt(event.target.getAttribute('data-rec-index'));
@@ -353,11 +309,11 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
             const recAmenities = recAmenityLayers[recIdx];
             
             if (event.target.checked) {{
-                // Turn ON: show flat marker + amenities (if their toggles are enabled)
+                // show flat marker + amenities (if toggle enabled)
                 if (recMarkerLayer && !map.hasLayer(recMarkerLayer)) {{
                     recMarkerLayer.addTo(map);
                 }}
-                // Add amenity layers if their global toggles are enabled
+                // Add amenity layer if global toggle is enabled
                 if (recAmenities) {{
                     document.querySelectorAll('#layer-controls input[data-kind]').forEach(amenityToggle => {{
                         if (amenityToggle.checked) {{
@@ -370,7 +326,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
                     }});
                 }}
             }} else {{
-                // Turn OFF: hide flat marker + all its amenities
+                // hide flat marker + all amenities
                 if (recMarkerLayer && map.hasLayer(recMarkerLayer)) {{
                     map.removeLayer(recMarkerLayer);
                 }}
@@ -386,24 +342,24 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
     }});
     
     // Event listeners for amenity toggles
-    // These toggle amenities across ALL active recommendations
+    // can toggle amenities for all recommendations
     document.querySelectorAll('#layer-controls input[data-kind]').forEach(cb => {{
         cb.addEventListener('change', (event) => {{
             const amenityKind = event.target.getAttribute('data-kind');
             
-            // Toggle this amenity type for all recommendations
+            //Toggle amenity type for all the recommendations
             uniqueRecIndices.forEach(recIdx => {{
                 const amenityLayer = recAmenityLayers[recIdx][amenityKind];
                 if (!amenityLayer) return;
                 
                 if (event.target.checked) {{
-                    // Turn ON amenity: show it if its recommendation is visible
+                    // show it if the recommendation is visible
                     const recMarkerLayer = recLayers[recIdx];
                     if (map.hasLayer(recMarkerLayer) && !map.hasLayer(amenityLayer)) {{
                         amenityLayer.addTo(map);
                     }}
                 }} else {{
-                    // Turn OFF amenity: hide it everywhere
+                    // hide it everywhere
                     if (map.hasLayer(amenityLayer)) {{
                         map.removeLayer(amenityLayer);
                     }}
@@ -412,7 +368,7 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
         }});
     }});
 
-    // MEMBER 6: adjust fit-bounds padding
+    //give more breathing room
     const all = points.map(p => [p.lat, p.lon]).concat(amenities.map(a => [a.lat, a.lon]));
     if (all.length > 1) {{ map.fitBounds(L.latLngBounds(all).pad(0.18)); }}
   </script>
@@ -420,18 +376,11 @@ def leaflet_map_html(center_lat, center_lon, points, amenities, zoom=14):
 </html>
 """
 
-
-
-
-# ============================================================================
-# STEP INDICATOR — MEMBER 7: style the progress bar
-# ============================================================================
+# 
+# Wizard UI implementation at top of page
+#
 
 def step_indicator(step):
-    """
-    The 1 → 2 → 3 → 4 progress bar at the top of every page.
-    MEMBER 7: adjust circle size, colours, connector style, label fonts.
-    """
     steps = STEP_META
     chips = []
     for i, (num, name) in enumerate(steps, start=1):
@@ -439,18 +388,18 @@ def step_indicator(step):
         chips.append(
             html.Div([
                 html.Div(num, style={
-                    "width": "52px",             # MEMBER 7: circle diameter
+                    "width": "52px",
                     "height": "52px",
                     "borderRadius": "999px",
                     "display": "flex", "alignItems": "center", "justifyContent": "center",
-                    "fontSize": "22px",          # MEMBER 7: number font size
+                    "fontSize": "22px",
                     "fontWeight": "950",
-                    "background": "#0ea5e9" if active else "rgba(15,23,42,0.08)",  # MEMBER 7: active vs inactive
+                    "background": "#0ea5e9" if active else "rgba(15,23,42,0.08)",
                     "color": "white" if active else "#0f172a",
                     "border": "2px solid rgba(15,23,42,0.12)",
                 }),
                 html.Div(name, style={
-                    "fontSize": "18px",          # MEMBER 7: label font size
+                    "fontSize": "18px",
                     "fontWeight": "950",
                     "opacity": 1 if active else 0.72,
                     "marginTop": "8px",
@@ -460,10 +409,9 @@ def step_indicator(step):
             ], style={"display": "flex", "flexDirection": "column", "alignItems": "center"})
         )
         if i < len(steps):
-            # MEMBER 7: connector line between steps
             chips.append(html.Div(style={
                 "height": "4px", "flex": "1",
-                "background": "rgba(15,23,42,0.12)",  # MEMBER 7: connector colour
+                "background": "rgba(15,23,42,0.12)",
                 "borderRadius": "999px",
                 "margin": "0 12px",
                 "alignSelf": "center",
@@ -471,8 +419,8 @@ def step_indicator(step):
     return html.Div(chips, style={"display": "flex", "alignItems": "center", "marginTop": "16px"})
 
 
+# show corresponding step once render next or the back button
 def nav_row(step):
-    """Back/Next navigation buttons. MEMBER 7: adjust labels and disabled appearance."""
     labels = {1: "Next →", 2: "Next →", 3: "Next →", 4: "See results →", 5: "Back"}
     next_label = labels.get(step, "Next →")
 
@@ -490,29 +438,26 @@ def nav_row(step):
         ], style={"display": "flex", "gap": "10px"}),
     ], style={"display": "flex", "gap": "14px", "justifyContent": "space-between", "marginTop": "18px"})
 
+#
+# Step by step architecture of app
+#
 
-# ============================================================================
-# PAGES
-# ============================================================================
-
-# ── STEP 1: Estimate your flat ─────────────────────────────────────────────
-# MEMBER 7: form layout   |   MEMBER 5: callback wiring
+# Step 1 Estimate your flat
 
 def step_1_estimate():
     return html.Div([
-        # MEMBER 7: step heading — adjust fontSize, fontWeight
         html.Div("Step 1: Estimate your flat price", style={"fontSize": "36px", "fontWeight": "950"}),
         html.Div([
             html.Div("Postal code", style=label_style),
             dcc.Input(id="sell_postal", type="text", placeholder="Example: 560123", style=input_style_big),
-            html.Div(style={"height": "14px"}),  # MEMBER 7: spacing between fields
+            html.Div(style={"height": "14px"}),
 
             html.Div("Flat type", style=label_style),
             dcc.Dropdown(
                 id="sell_flat_type",
                 options=["2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE"],
                 value="4 ROOM", clearable=False,
-                style={"fontSize": "22px"},  # MEMBER 7: dropdown font size
+                style={"fontSize": "22px"},
             ),
             html.Div(style={"height": "14px"}),
 
@@ -530,16 +475,13 @@ def step_1_estimate():
         ], style=card_style),
     ])
 
-
-# ── STEP 2: Priority sliders ──────────────────────────────────────────────
-# MEMBER 7: slider layout and styling
+# Step 2 on what matters to you, which is just sliders for the 4 key amenities (changed emoji from here https://unicode-table.com)
 
 def step_2_preferences():
-    slider_style = {"padding": "10px 6px"}  # MEMBER 7: slider container padding
+    slider_style = {"padding": "10px 6px"}
     return html.Div([
-        html.Div("Step 2: Tell us what matters to you", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("Step 2: Tell us what matters to you by moving the sliders from 1 to 10", style={"fontSize": "36px", "fontWeight": "950"}),
         html.Div([
-            # MEMBER 7: adjust emoji, label text, default value for each slider
             html.Div("🏥 Healthcare nearby", style=label_style),
             html.Div(dcc.Slider(id="pref_healthcare", min=1, max=10, step=1, value=8,
                                 marks={i: str(i) for i in range(1, 11)}), style=slider_style),
@@ -563,25 +505,22 @@ def step_2_preferences():
         ], style=card_style),
     ])
 
-
-# ── STEP 3: Budget & constraints ──────────────────────────────────────────
-# MEMBER 7: form layout   |   MEMBER 8: expand town list
+# Step 3: set the limits for /recommend (budget -> shd change from min to max, changed no of rooms to flat type, and preferred towns is optional now)
 
 def step_3_limits():
     return html.Div([
         html.Div("Step 3: Tell us your limits", style={"fontSize": "36px", "fontWeight": "950"}),
         html.Div([
-            html.Div("💵 Maximum budget to buy ($)", style=label_style),
+            html.Div("💵 Tell us your maximum budget to buy ($)", style=label_style),
             dcc.Input(id="lim_budget", type="number", value=550000, style=input_style_big),
             html.Div(style={"height": "14px"}),
 
-            html.Div("🛏️ Flat Type", style=label_style),
+            html.Div("🛏️ Tell us which flat type you want to buy", style=label_style),
             dcc.Dropdown(id="lim_min_rooms", options=[2, 3, 4, 5], value=3, clearable=False,
                          style={"fontSize": "22px"}),
             html.Div(style={"height": "14px"}),
 
-            # MEMBER 8: verify this covers all 26 HDB towns
-            html.Div("📍 Preferred towns (optional)", style=label_style),
+            html.Div("📍 Tell us which towns you prefer (optional)", style=label_style),
             dcc.Dropdown(
                 id="lim_towns",
                 options=[
@@ -601,20 +540,20 @@ def step_3_limits():
         ], style=card_style),
     ])
 
-
-# ── STEP 4: Results ───────────────────────────────────────────────────────
-# MEMBER 8: result cards + layout   |   MEMBER 6: map
+# Step 4 - LBS page    -lbs patch
 def step_4_lbs_page():
+
     return step_4_lbs(
         card_style= card_style,
         label_style= label_style,
         input_style_big= input_style_big,
     )
 
+###Step 5: Results page - results card, map and comparison modal 
 def step_5_results():
     return html.Div([
         html.Div("Step 5: Results", style={"fontSize": "36px", "fontWeight": "950"}),
-        html.Div('Compare units in detail by selecting and clicking the "Compare Units" button at the bottom of the page.', style={
+        html.Div('Compare units in detail by selecting the checkbox for each flat and then click the "Compare Units" button at the bottom of the page.', style={
             "fontSize": "18px",
             "fontWeight": "700",
             "opacity": "0.8",
@@ -622,8 +561,7 @@ def step_5_results():
             "marginBottom": "14px",
         }),
         html.Div([
-            # Left column: results — MEMBER 8: owns this section
-            # amanda: 2 html.button() added
+            #Left column is the recommendation cards and reset action
             html.Div([
                 html.Div(id="results_list", style={"marginTop": "16px"}),
                 html.Div([
@@ -631,14 +569,14 @@ def step_5_results():
                 ], style={"marginTop": "14px"}),
             ], style={
                 "flex": "1",
-                "minWidth": "420px",  # MEMBER 8: min width of results column
+                "minWidth": "420px",
                 "position": "relative",
             }),
 
-            # Right column: map — MEMBER 6: owns this section
+            #Right column is the interactive map
             html.Div([
                 html.Div("Map (zoom and drag)", style={
-                    "fontSize": "22px",   # MEMBER 6: map header font size
+                    "fontSize": "22px",
                     "fontWeight": "950",
                     "marginBottom": "10px",
                 }),
@@ -647,25 +585,25 @@ def step_5_results():
                     srcDoc="<html><body style='font-family:system-ui;padding:16px'>Run results to view map.</body></html>",
                     style={
                         "width": "100%",
-                        "height": "720px",     # MEMBER 6: map height
+                        "height": "720px",
                         "border": "0",
-                        "borderRadius": "18px",  # MEMBER 6: map corner rounding
+                        "borderRadius": "18px",
                         "boxShadow": SHADOW,
                         "background": "white",
                     },
                 ),
             ], style={
                 "flex": "1.2",
-                "minWidth": "520px",  # MEMBER 6: min width of map column
+                "minWidth": "520px",
                 "position": "relative",
             }),
         ], style={
             **card_style,
             "display": "flex",
-            "gap": "18px",            # MEMBER 7: gap between results and map columns
+            "gap": "18px",
             "alignItems": "flex-start",
         }),
-        # Loading overlay
+        #Loading overlay to deal w waiting time and prevent user from thinking it crashed 
         html.Div(id="results_loading_overlay", style={
             "position": "fixed",
             "top": "0",
@@ -680,7 +618,7 @@ def step_5_results():
             "flexDirection": "column",
         }, children=[
             html.Div([
-                # Spinner using Unicode
+                # Spinner using Unicode https://unicode-table.com
                 html.Div("⏳", style={
                     "fontSize": "64px",
                     "marginBottom": "24px",
@@ -698,13 +636,13 @@ def step_5_results():
         ]),
     ])
 
-
-# ============================================================================
-# LAYOUT — MEMBER 5: overall structure
-# ============================================================================
+# 
+# App layout n stores 
+# 
 
 app.layout = html.Div([
-    # Client-side stores — MEMBER 5: data persists across steps
+    # Client-side stores to keep the user inputs available across the steps and callbacks.
+
     dcc.Store(id="step", data=1),
     dcc.Store(id="sell_payload"),
     dcc.Store(id="sell_geo"),
@@ -714,16 +652,14 @@ app.layout = html.Div([
     dcc.Store(id="recs_data"),
     dcc.Store(id="selected_units", data=[]),
     dcc.Store(id="modal_open", data=False),
-    dcc.Store(id="selected_recommendation", data=None),  # MEMBER 5: track focused flat (index or None)
+    dcc.Store(id="selected_recommendation", data=None),
     dcc.Store(id="results_lbs_result"),
-    *lbs_stores(),
-
+    *lbs_stores(),       #lbs patch
 
     
-
+#### app logo from canva: changed from centre to left 
     html.Div([
         html.Div([
-            # MEMBER 7: title emoji and text
             html.Img(src="/assets/HomeCompass.png", style={
     "height": "175px",
     "marginBottom": "2px"
@@ -737,7 +673,7 @@ app.layout = html.Div([
         html.Div(id="results_loading_overlay", style={"display": "none"}),
         html.Div(id="estimate_loading_overlay", style={"display": "none"}, children=[
             html.Div([
-                html.Div("⏳", style={
+                html.Div("⏳", style={        #loading for the step 1 created to showcase that result is being generated same as step 5, step 1 result is fast
                     "fontSize": "64px",
                     "marginBottom": "24px",
                     "animation": "pulse 1s ease-in-out infinite",
@@ -752,7 +688,7 @@ app.layout = html.Div([
         ]),
     ], style=base_page_style),
 
-    # Comparison modal — MEMBER 8: Compare Units popup
+    #Comparison modal for selected recommendations 
     html.Div(id="comparison_modal", style={
         "display": "none",
         "position": "fixed",
@@ -832,11 +768,11 @@ app.validation_layout = html.Div([
     step_5_results(),
 ])
 
-# ============================================================================
-# CALLBACKS — MEMBER 5: owns all callback wiring
-# ============================================================================
+# 
+# Callbacks (impt for integration)
+# 
 
-# ── Render current step ──
+# Render the current step
 
 @app.callback(
     Output("main_content", "children"),
@@ -849,8 +785,7 @@ def render_step(step):
     pages = {1: step_1_estimate, 2: step_2_preferences, 3: step_3_limits, 4: step_4_lbs_page, 5: step_5_results,}
     return pages[step](), nav_row(step), step_indicator(step)
 
-
-# ── Navigation ──
+#Handle the next/back navigation between steps
 
 @app.callback(
     Output("step", "data"),
@@ -860,6 +795,7 @@ def render_step(step):
     State("lbs_result", "data"),
     prevent_initial_call=True,
 )
+#enfore lbs validation 
 def go_next_back(n_next, n_back, step, lbs_result):
     trig = dash.callback_context.triggered_id
     step = int(step or 1)
@@ -871,9 +807,10 @@ def go_next_back(n_next, n_back, step, lbs_result):
         return max(step - 1, 1)
     return step
 
+#Step 1 callbacks --  autosave the inputs and geocode the postal code from onemap (validate that is 6 digit and also validate that it is correct)
 
-# ── Step 1: auto-save + geocode ──
 
+#check that postal is valid
 def is_valid_sg_postal(postal):
     return bool(re.fullmatch(r"\d{6}", postal))
 
@@ -888,13 +825,12 @@ def is_valid_sg_postal(postal):
     prevent_initial_call=True,
 )
 
-# amanda: fixing autosave postal code between steps. (added the autosave_step1 function)
+
+#autosave and geocode (changed to display the exact address after estimate price - to validate that its correct, added trust i guess)
 def autosave_step1(postal, flat_type, area, lease):
-    """Auto-save Step 1 form data and geocode the postal code."""
     postal = (postal or "").strip()
     flat_type = flat_type or "4 ROOM"
     
-    # Always create the payload with provided data
     payload = {
         "postal": postal,
         "flat_type": flat_type,
@@ -902,7 +838,7 @@ def autosave_step1(postal, flat_type, area, lease):
         "remaining_lease": int(lease) if lease not in (None, "") else None,
     }
     
-    # Validation checks
+    #Validation checks: UX so they rmb to fill all the inputs 
     if not postal:
         msg = html.Div("📍 Please enter your postal code.", style=banner_warn)
         return payload, None, msg
@@ -911,11 +847,20 @@ def autosave_step1(postal, flat_type, area, lease):
         msg = html.Div("⚠️ Invalid postal code. Must be 6 digits (e.g., 560123).", style=banner_warn)
         return payload, None, msg
     
+    if not flat_type:
+        msg = html.Div("🏠 Please choose your flat type from the dropdown menu.", style=banner_warn)
+        return payload, None, msg
+    
     if not area:
         msg = html.Div("⚠️ Please enter your floor area.", style=banner_warn)
         return payload, None, msg
     
-    # Try to geocode
+    if not lease:
+        msg = html.Div("⚠️ Please enter your remaining lease.", style=banner_warn)
+        return payload, None, msg
+    
+    
+    #Try to geocode
     geo = None
     try:
         logger.info(f"[Geocoding] Searching for postal code: {postal}")
@@ -930,16 +875,22 @@ def autosave_step1(postal, flat_type, area, lease):
         else:
             logger.warning(f"[Geocoding] Could not find postal code: {postal}")
             msg = html.Div("⚠️ Postal code saved, but location not found on map (API error). You can still proceed.", style=banner_warn)
-            # Return payload even if geocoding fails - let user proceed
+            #Return payload even if geocoding fails, just for flow of app in case cannot find but not possible i guess
             return payload, None, msg
     
     except Exception as e:
         logger.error(f"[Geocoding Error] {str(e)}", exc_info=True)
         msg = html.Div(f"⚠️ Postal code saved. Map lookup failed: check your connection.", style=banner_warn)
-        # Return payload even on error - important!
+        #Return payload even on error
         return payload, None, msg
 
-# ── Step 1: estimate price ──
+
+
+
+#####Backend Integration parts#################    #use the mock values till integrate and also as fallback if backend fail to load
+
+
+# Step 1 callback to request an estimated selling price (sell side)
 
 @app.callback(
     Output("sell_pred", "data"),
@@ -949,19 +900,21 @@ def autosave_step1(postal, flat_type, area, lease):
     State("sell_geo", "data"),
     prevent_initial_call=True,
 )
+
+
+#return sell price and output price in a box below the main inputs
 def estimate_price(n, sell_payload, sell_geo):
+
     if not sell_payload or not sell_payload.get("postal"):
         return None, ""
 
-    # MEMBER 5: try real backend first, fall back to mock
     pred = safe_post("/predict/sell", sell_payload)
     if not pred:
         pred = mock_predict_price(sell_payload["postal"], sell_payload["flat_type"], sell_payload.get("floor_area_sqm"))
 
-    # MEMBER 7: style price display — large number, confidence range
     address_str = sell_geo.get("address", "") if sell_geo else ""
     box = html.Div([
-        html.Div("Estimated selling price", style={"fontSize": "22px", "fontWeight": "950", "opacity": "0.85"}),
+        html.Div("Estimated selling price", style={"fontSize": "22px", "fontWeight": "950", "opacity": "0.85"}),  ##alrdy made both big enough to see 
         html.Div(f"${pred['price']:,.0f}", style={
             "fontSize": "52px",
             "fontWeight": "950",
@@ -971,15 +924,15 @@ def estimate_price(n, sell_payload, sell_geo):
 
     return pred, box
 
-
 @app.callback(
     Output("estimate_loading_overlay", "style"),
     Input("btn_estimate", "n_clicks"),
     State("step", "data"),
     prevent_initial_call=True,
 )
+
+## Show loading overlay while estimate price is running on Step 1, in case cuz its pretty fast
 def show_loading_on_estimate(n_clicks, step):
-    """Show loading overlay while estimate price is running on Step 1."""
     if int(step or 1) == 1 and n_clicks:
         return {
             "display": "flex",
@@ -1008,15 +961,15 @@ def show_loading_on_estimate(n_clicks, step):
         "flexDirection": "column",
     }
 
-
 @app.callback(
     Output("estimate_loading_overlay", "style", allow_duplicate=True),
     Input("sell_pred", "data"),
     State("step", "data"),
     prevent_initial_call=True,
 )
+
+##remove after callback done and output
 def hide_loading_when_estimate_ready(sell_pred, step):
-    """Hide estimate loading overlay once estimate callback returns."""
     return {
         "display": "none",
         "position": "fixed",
@@ -1032,7 +985,9 @@ def hide_loading_when_estimate_ready(sell_pred, step):
     }
 
 
-# ── Step 2: save weights ──
+
+
+#Step 2 callback to store user preference weights for healthcare, mrt, hawker and park 
 
 @app.callback(
     Output("prefs_weights", "data"),
@@ -1042,11 +997,12 @@ def hide_loading_when_estimate_ready(sell_pred, step):
     Input("pref_hawker", "value"),
     Input("pref_recreation", "value"),
 )
+
+
 def save_prefs(hc, tr, hw, rec):
     return weights_from_sliders(hc, tr, hw, rec), html.Div("✅ Saved.", style=banner_ok)
 
-
-# ── Step 3: save constraints ──
+# Step 3 callback to store budget, flat type and preffered town 
 
 @app.callback(
     Output("constraints", "data"),
@@ -1063,8 +1019,8 @@ def save_limits(budget, min_rooms, towns):
     }, html.Div("✅ Saved.", style=banner_ok)
 
 
-# ── Step 4: run results ──
-# MEMBER 5: orchestration | MEMBER 8: cards | MEMBER 6: map
+
+#Step 5 callback to generate recommendations, cards, and map output.
 
 @app.callback(
     Output("results_list", "children"),
@@ -1082,14 +1038,23 @@ def save_limits(budget, min_rooms, towns):
     prevent_initial_call=True,
 )
 
+##
+## Generate the Step 5 recommendation view.
+##
+## This callback validates the stored inputs, requests or mocks recommendations (our fallback),
+## geocodes each unit for recommendations with nearest amenities,
+## also build the result cards, and render the Leaflet map HTML.
+##
+
 def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, constraints, lbs_result):
+
     if int(step or 1) != 5:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     print(f"DEBUG prefs_w: {prefs_w}")
-    print(f"DEBUG constraints: {constraints}")
+    print(f"DEBUG constraints: {constraints}")   #####added debug so can see whats the inputs on terminal when testing
     
-    # Validation
+    #Ensure all thr earlier steps produce whats needed for recommendations --- the logic here is a bit weak maybe can amend step 1 next bttn to not show if nvr click estimate
     if not lbs_result or not lbs_result.get("ok"):
         return html.Div("Please complete Step 4: LBS details", style=banner_warn), dash.no_update, None, None
     if not sell_payload or not sell_payload.get("postal"):
@@ -1101,10 +1066,13 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     if not constraints:
         return html.Div("Please complete Step 3.", style=banner_warn), dash.no_update, None, None
 
+
+### fallback (impt)
     if not sell_pred:
         sell_pred = mock_predict_price(sell_payload["postal"], sell_payload["flat_type"], sell_payload.get("floor_area_sqm"))
 
-    # MEMBER 5: replace mock with real backend call when ready:
+
+
     #   payload = {"sell_payload": sell_payload, "sell_pred": sell_pred,
     #              "weights": prefs_w, "constraints": constraints}
     #   recs = safe_post("/recommend", payload)
@@ -1117,27 +1085,27 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         recs = mock_recommendations(constraints)
     
 
-    # Geocode each recommendation
+    # Geocode each recommended flat so cards and the map share the same coordinates.
     for r in recs:
         geo = onemap_search(r["postal"]) or onemap_search(f"Singapore {r['postal']}")
         if geo:
             r["lat"], r["lon"], r["address"] = geo["lat"], geo["lon"], geo["address"]
             
-            # Calculate the distance from the user's current flat (sell_geo) to this recommended flat
+            #Calculate the distance from the user's current flat (sell_geo) to this recommended flat  --- haversine refer to helper.py
             r["dist_from_home_km"] = haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"])
         else:
-            # Fallback for geocoding failure
-            r["lat"] = sell_geo["lat"] + 0.01  # Default to slightly different coordinates
+            #Fallback for geocoding fail
+            r["lat"] = sell_geo["lat"] + 0.01
             r["lon"] = sell_geo["lon"] + 0.01
             r["address"] = f"{r['town']} (approx)"
-            r["dist_from_home_km"] = 0.01  # Default distance if geocoding fails
+            r["dist_from_home_km"] = 0.01
 
-    # Derived fields
+    #Compute values derived from the sell estimate and geocoded location
     for r in recs:
         r["cash_unlocked"] = int(sell_pred["price"] - r["buy_price"])
         r["dist_from_home_km"] = round(haversine_km(sell_geo["lat"], sell_geo["lon"], r["lat"], r["lon"]), 2)
 
-    # ── Map — MEMBER 6: customise markers and amenities ──
+    #Build map markers and amenity overlays for the current result set
     points = [
         {"name": f"Your flat ({sell_payload['postal']})", "lat": sell_geo["lat"], "lon": sell_geo["lon"], "color": "#0ea5e9", "rec_index": -1},
     ]
@@ -1149,10 +1117,10 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
             "color": "#22c55e", 
             "price": r["buy_price"],
             "distance": f"{r['dist_from_home_km']} km",
-            "rec_index": i,  # MEMBER 6: index for toggle layer grouping
+            "rec_index": i,
         })
 
-    # Fetch real amenities from OneMap — MEMBER 6: customize themes
+    #Fetch the nearby amenities for each recommendation and keep the nearest item of each type for the card view (open to see nearby amenities)
     amenities = []
     base_lat, base_lon = sell_geo["lat"], sell_geo["lon"]
     radius_km = 2.0
@@ -1160,7 +1128,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     for idx, r in enumerate(recs):
         rec_lat, rec_lon = r["lat"], r["lon"]
         
-        # Track nearest amenity of each type for display in the card
+        #Capture the nearest amenity 
         nearest_amenities = {
             "healthcare": None,
             "hawker": None,
@@ -1168,7 +1136,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
             "nature": None,
         }
 
-        # Healthcare (CHAS clinics, sorted by distance)
+        #Healthcare amenities 
         healthcare_amenities = get_nearby_amenities("healthcare", rec_lat, rec_lon, radius_km=1.0, limit=9999)
         healthcare_with_dist = []
         for amenity in healthcare_amenities:
@@ -1177,7 +1145,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         healthcare_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
         logger.info(f"DEBUG: Found {len(healthcare_with_dist)} clinics for rec #{idx+1} at ({rec_lat}, {rec_lon})")
         
-        # Store nearest healthcare for card display
+        #Keep the closest healthcare option for the results card
         if healthcare_with_dist:
             nearest = healthcare_with_dist[0]
             nearest_amenities["healthcare"] = {
@@ -1195,10 +1163,10 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 "kind": "healthcare",
                 "address": amenity.get("address", ""),
                 "distance": dist_str,
-                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+                "rec_index": idx,
             })
 
-        # Hawker centres & food courts
+        #Hawker centres and food court
         hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=1.0, limit=100)
         hawker_with_dist = []
         for amenity in hawker_amenities:
@@ -1208,7 +1176,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         hawker_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
         logger.info(f"DEBUG: Found {len(hawker_with_dist)} hawker/food courts within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
         
-        # Store nearest hawker for card display
+        #Keep the closest option for the results card.
         if hawker_with_dist:
             nearest = hawker_with_dist[0]
             nearest_amenities["hawker"] = {
@@ -1226,13 +1194,13 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 "kind": "hawker / food",
                 "address": amenity.get("address", ""),
                 "distance": dist_str,
-                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+                "rec_index": idx,
             })
             hawker_debug_rows.append([
                 amenity["name"], amenity.get("address", ""), amenity["lat"], amenity["lon"], dist_str
             ])
 
-        # Transport (MRT/LRT stations via OneMap search)
+        #Transport amenities (mrt)
         transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=1.0, limit=100)
         transport_with_dist = []
         for amenity in transport_amenities:
@@ -1242,7 +1210,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         transport_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
         logger.info(f"DEBUG: Found {len(transport_with_dist)} transport points within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
         
-        # Store nearest transport for card display
+        #Keep the closest option for the results card
         if transport_with_dist:
             nearest = transport_with_dist[0]
             nearest_amenities["transport"] = {
@@ -1260,10 +1228,10 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 "kind": "transport",
                 "address": amenity.get("address", ""),
                 "distance": dist_str,
-                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+                "rec_index": idx,
             })
 
-        # Nature parks (API, fallback if needed)
+        #Nature and park amenities --- sometimes gets like fitness corners also 
         park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=1.0, limit=100)
         park_with_dist = []
         for park in park_amenities:
@@ -1273,7 +1241,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         park_with_dist.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
         logger.info(f"DEBUG: Found {len(park_with_dist)} parks within 2km for rec #{idx+1} at ({rec_lat}, {rec_lon})")
         
-        # Store nearest park for card display
+        #Keep the closest option 
         if park_with_dist:
             nearest = park_with_dist[0]
             nearest_amenities["nature"] = {
@@ -1291,35 +1259,41 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
                 "kind": "nature",
                 "address": park.get("address", ""),
                 "distance": dist_str,
-                "rec_index": idx,  # MEMBER 6: tie amenity to its recommendation
+                "rec_index": idx,
             })
             hawker_debug_rows.append([
                 park["name"], park.get("address", ""), park["lat"], park["lon"], dist_str
             ])
 
-        # NOTE: We intentionally skip healthcare/parks/mrt for now to reduce API load.
-        # Store nearest amenities in recommendation for card display
+                #nearest amenity summaries on the recommendation
         r["nearest_healthcare"] = nearest_amenities["healthcare"]
         r["nearest_hawker"] = nearest_amenities["hawker"]
         r["nearest_transport"] = nearest_amenities["transport"]
         r["nearest_nature"] = nearest_amenities["nature"]
 
-    # ── Result cards — MEMBER 8: customise everything in this block ──
-    # (built AFTER amenity fetching so nearest_* data is available)
+
+
+
+#### results card - after get all the nearest amenities
+
     cards = []
     for i, r in enumerate(recs, start=1):
         pg_url = r.get("listing_url", "https://www.propertyguru.com.sg")
 
-        valuation = r.get("valuation_label", "N/A")
+
+
+        ###from backend pred model, just added at the top of card to display whether its a fair deal or not, also added the small info icon. colour shd be good to visualise
+        ### 
+        valuation = r.get("valuation_label", "N/A")   ## mock (fallback) will show NA
         predicted = r.get("predicted_price", 0)
         actual = r.get("buy_price", 0)
         diff = actual - predicted
         direction = "above" if diff > 0 else "below"
         info_tooltip = f"Our model estimates this flat's value at ${predicted:,.0f}. The listed price is ${actual:,.0f}, which is {direction} our estimate."
-        valuation_color = {"Fair Value": "#22c55e", "Above Market": "#f97316", "Below Market": "#0ea5e9"}.get(valuation, "#94a3b8")
-        valuation_emoji = {"Fair Value": "✅ Good Value", "Above Market": "⚠️ Above Market", "Below Market": "💰 Below Market"}.get(valuation, valuation)
+        valuation_color = {"Fair Value": "#22c55e", "Above Market": "#f97316", "Below Market": "#0ea5e9"}.get(valuation, "#94a3b8")       
+        valuation_emoji = {"Fair Value": "✅ Fair Value", "Above Market": "⚠️ Above Market", "Below Market": "💰 Below Market"}.get(valuation, valuation)
 
-        # Build amenity description strings
+        #Nearest amenity description texts
         hc = r.get("nearest_healthcare")
         hw = r.get("nearest_hawker")
         tr = r.get("nearest_transport")
@@ -1330,7 +1304,6 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         nature_str = f"{na['name']} ~{na['dist_m']}m" if na else "No nature within 1km"
 
         cards.append(html.Div([
-            # MEMBER 8: selection checkbox
             dcc.Checklist(
                 id={"type": "unit_checkbox", "index": i - 1},
                 options=[{"label": "Compare this unit", "value": i - 1}],
@@ -1373,7 +1346,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
         "color": "#94a3b8",
         "fontWeight": "900",
     }),
-    dbc.Tooltip(
+    dbc.Tooltip(   ##info icon (same as lbs one)
         info_tooltip,
         target=f"valuation_info_{i}",
         placement="top",
@@ -1396,21 +1369,17 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     "flexWrap": "wrap",
     "gap": "4px",
 }),
-            # MEMBER 8: card title (address only)
             html.Div(f"#{i} • {r.get('address_from_url', r['town'])}", style={
-                "fontSize": "28px",           # MEMBER 8: title size
+                "fontSize": "28px",
                 "fontWeight": "950",
                 "lineHeight": "1.2",
             }),
-            # MEMBER 8: cash unlocked
             html.Div(f"Cash unlocked (estimate): ${r['cash_unlocked']:,.0f}", style={
                 "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.6",
             }),
-            # MEMBER 8: buy price (always visible)
             html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
                 "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.5", "marginTop": "4px",
             }),
-            # MEMBER 8: dropdown for additional details
             html.Details([
                 html.Summary("Nearby Amenities ▼", style={
                     "fontSize": "20px",
@@ -1442,10 +1411,10 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
             html.A("🔎 Click here to view the listing on PropertyGuru", href=pg_url, target="_blank", style={
                 "display": "inline-block",
                 "marginTop": "10px",
-                "fontSize": "18px",           # MEMBER 8: link size
+                "fontSize": "18px",
                 "fontWeight": "950",
                 "textDecoration": "none",
-                "color": "#0ea5e9",           # MEMBER 8: link colour
+                "color": "#0ea5e9",
             }),
         ], style={**card_style, "marginTop": "14px"}))
     if lbs_result and lbs_result.get("ok"):
@@ -1454,8 +1423,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
 
     return html.Div([*cards]), map_doc, recs, lbs_result
 
-
-# ── Loading indicator for Step 5 ──
+#Step 5 loading overlay callbacks
 
 @app.callback(
     Output("results_loading_overlay", "style"),
@@ -1464,11 +1432,9 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
     prevent_initial_call=True,
 )
 def show_loading_on_step5(main_content, step):
-    """Show loading overlay when entering Step 5."""
     if int(step or 1) == 5:
         return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
     return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
-
 
 @app.callback(
     Output("results_loading_overlay", "style", allow_duplicate=True),
@@ -1477,19 +1443,21 @@ def show_loading_on_step5(main_content, step):
     prevent_initial_call=True,
 )
 def hide_loading_when_results_ready(results_list_children, step):
-    """Hide loading overlay once results are populated."""
     if int(step or 1) != 5:
         return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
-    
-    # Hide loading if results_list has content
+
     if results_list_children:
         return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
     
-    # Show loading if no content yet
+    #Show loading if no content yet
     return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
 
 
-# ── Reset ──
+
+
+
+
+# Reset all stored state and return to Step 1.
 
 @app.callback(
     Output("step", "data", allow_duplicate=True),
@@ -1505,12 +1473,12 @@ def hide_loading_when_results_ready(results_list_children, step):
     Input("btn_reset", "n_clicks"),
     prevent_initial_call=True,
 )
+
+####Clear all stored app state and send the user back to step 1
 def reset_all(n):
     return 1, None, None, None, None, None, None, None, None, None
 
-
-# amanda: added this whole compare units segment for the comparison selection and panels
-# ── Compare Units — MEMBER 8: comparison logic ──
+#Comparison modal callbacks
 
 @app.callback(
     Output("results_map", "srcDoc", allow_duplicate=True),
@@ -1520,14 +1488,10 @@ def reset_all(n):
     State("sell_payload", "data"),
     prevent_initial_call=True,
 )
+
+
+
 def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload):
-    """
-    When a recommendation is focused, regenerate the map to show:
-    - Current flat (your home)
-    - Selected recommendation flat
-    - Amenities only around the selected flat
-    MEMBER 6: map updates based on focus | MEMBER 5: callback logic
-    """
     
     if focused_index is None or not recs_data or not sell_geo or not sell_payload:
         return dash.no_update
@@ -1551,7 +1515,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
         }
     ]
     
-    # ── Amenities: only around focused flat ──
+    #Fetch only the amenities for the focused recommendation
     amenities = []
     rec_lat, rec_lon = focused_rec["lat"], focused_rec["lon"]
     
@@ -1574,10 +1538,10 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
             "kind": "healthcare",
             "address": amenity.get("address", ""),
             "distance": dist_str,
-            "rec_index": 0,  # Focused flat index
+            "rec_index": 0,  
         })
     
-    # Hawker centres & food courts
+    #Hawker centres & food court
     hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=1.0, limit=100)
     hawker_with_dist = []
     for amenity in hawker_amenities:
@@ -1595,10 +1559,10 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
             "kind": "hawker / food",
             "address": amenity.get("address", ""),
             "distance": dist_str,
-            "rec_index": 0,  # Focused flat index
+            "rec_index": 0,  
         })
     
-    # Transport (MRT/LRT)
+    #Transport (MRT n LRT)
     transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=1.0, limit=100)
     transport_with_dist = []
     for amenity in transport_amenities:
@@ -1616,10 +1580,10 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
             "kind": "transport",
             "address": amenity.get("address", ""),
             "distance": dist_str,
-            "rec_index": 0,  # Focused flat index
+            "rec_index": 0,  
         })
     
-    # Nature parks
+    #Nature parks n fitness corners (recreation)
     park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=1.0, limit=100)
     park_with_dist = []
     for park in park_amenities:
@@ -1642,27 +1606,25 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
     
     logger.info(f"[Focus] Found {len(amenities)} total amenities for focused flat")
     
-    # Generate and return the updated map
+    #Generate and return the updated map
     map_doc = leaflet_map_html(rec_lat, rec_lon, points, amenities, zoom=14)
     return map_doc
-
 
 @app.callback(
     Output("selected_units", "data"),
     Input({"type": "unit_checkbox", "index": dash.ALL}, "value"),
     prevent_initial_call=True,
 )
+
+##for comparison modal
 def update_selected_units(checkbox_values):
-    """Track which units are selected for comparison"""
     if not checkbox_values:
         return []
-    # checkbox_values is a list of lists, where each inner list contains the selected values
     selected_indices = []
     for values in checkbox_values:
         if values:
             selected_indices.extend(values)
     return selected_indices
-
 
 @app.callback(
     Output("modal_open", "data"),
@@ -1673,10 +1635,12 @@ def update_selected_units(checkbox_values):
     State("selected_units", "data"),
     prevent_initial_call=True,
 )
+
+
 def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indices):
     trig = dash.callback_context.triggered_id
 
-    # Always close modal when navigating steps or regenerating results
+    #Always close modal when navigating steps or showing results
     if trig in ["step", "recs_data"]:
         return False
 
@@ -1684,7 +1648,7 @@ def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indic
         return False
 
     if trig == "btn_compare":
-        # Only open if user has selected at least one unit
+        #only open if user has selected at least one of the units
         return bool(selected_indices)
 
     return dash.no_update
@@ -1698,8 +1662,10 @@ def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indic
     State("results_lbs_result", "data"),
     prevent_initial_call=True,
 )
+
+
+#### comparison model main tabular form
 def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_result):
-    """Render comparison modal content."""
 
     modal_style_hidden = {
         "display": "none",
@@ -1739,18 +1705,18 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
                 style={"fontSize": "16px", "color": "#ef4444"},
             )
 
-        # normalize selected indices
-        normalized_indices = []
+        #normalise selected indices
+        normalised_indices = []
         for raw_idx in selected_indices:
             try:
                 idx = int(raw_idx)
             except (TypeError, ValueError):
                 continue
-            if idx not in normalized_indices:
-                normalized_indices.append(idx)
+            if idx not in normalised_indices:
+                normalised_indices.append(idx)
 
         selected_items = []
-        for idx in normalized_indices:
+        for idx in normalised_indices:
             if recs_data and 0 <= idx < len(recs_data):
                 rec = recs_data[idx]
                 selected_items.append({
@@ -1780,10 +1746,10 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
                 style={"fontSize": "16px", "color": "#ef4444"},
             )
 
-        # ----------------------------
+        # 
         # detailed comparison table
-        # selected flats only
-        # ----------------------------
+        # 
+    
         headers = ["Metric", *[item["label"] for item in selected_items]]
 
         metrics = [
@@ -1826,6 +1792,8 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
                 return "N/A"
             return str(value) if value not in (None, "") else "N/A"
 
+
+#####  for comparison part to display the best of the metric
         metric_perf = {}
         for _, metric_key, prefer in metrics:
             values = [_metric_value(item["data"], metric_key) for item in selected_items]
@@ -1905,10 +1873,10 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
             },
         )
 
-        # ----------------------------
+        # 
         # summary section
-        # selected flats + LBS stay
-        # ----------------------------
+        # selected flats + LBS stay  (smaller table - to show lbs also)
+        # 
         summary_options = []
 
         for item in selected_items:
@@ -2011,6 +1979,8 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
             key=lambda x: x["immediate_cash"] if isinstance(x["immediate_cash"], (int, float)) else -1
         )
 
+
+##### insights box bside to show the best option based on cash unlocked
         insight_box = html.Div([
             html.Div("Recommendation Insight", style={"fontSize": "22px", "fontWeight": "900", "marginBottom": "10px"}),
             html.Ul([
@@ -2019,7 +1989,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
                     style={"marginBottom": "10px", "fontSize": "16px"}
                 ),
                 html.Li(
-                    "Use the detailed comparison above to weigh amenities and distance against cash outcomes.",
+                    "Use the comparison above to weigh the amenities nearby and cash unlocked. You may visit the HDB website for more information on Silver Housing Bonus Scheme and LBS",
                     style={"fontSize": "16px"}
                 ),
             ], style={"paddingLeft": "20px", "margin": "0"}),
@@ -2043,7 +2013,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
 
         logger.info(
             "[Compare Modal FINAL] selected=%s | lbs_net=%s | headers=%s",
-            normalized_indices,
+            normalised_indices,
             net_lbs_value,
             headers,
         )
@@ -2060,11 +2030,9 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
             style={"fontSize": "16px", "color": "#ef4444"},
         )
 
-
-# ============================================================================
-# RUN
-# ============================================================================
+# 
+# App entry point port
+# 
 import os
 port = int(os.environ.get("PORT", 8050))
 app.run(host="0.0.0.0", port=port, debug=False)
-

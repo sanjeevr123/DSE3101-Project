@@ -1,78 +1,156 @@
-# DSE3101-Project
+# HomeCompass — HDB Downsizing Helper
 
-# HDB Resale Price Analysis and Prediction
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**Course**: DSE3101 | **AY2025/2026** | **Group**: flatfinders
 
-**Course**: DSE3101 
-**Academic Year**: 2025/2026  
-**Group Name**: flatfinders
+HomeCompass is a senior-friendly web application that helps elderly Singaporean HDB homeowners (aged 65 and above) make informed housing decisions. It combines a flat price estimator, a Senior Accessibility Index (SAI) scoring system, and a Lease Buyback Scheme (LBS) calculator into a guided five-step interface.
 
-## 📋 Table of Contents
-- [Project Overview](#project-overview)
-- [Team Members](#team-members)
-- [Problem Statement](#problem-statement)
-- [Data Sources](#data-sources)
-- [Project Structure](#project-structure)
-- [Installation & Setup](#installation--setup)
-- [Usage](#usage)
-- [Methodology](#methodology)
-- [Key Features](#key-features)
-- [Results](#results)
-- [Deliverables](#deliverables)
-- [Acknowledgments](#acknowledgments)
-- [License](#license)
+You can access the deployed app **[here](https://homecompass.onrender.com)**. Please open the **[backend](https://homecompass-backend.onrender.com/health)** link first and wait for it to load before launching the app as it is hosted on Render free tier and may take 1–2 minutes to wake up.
 
-## 🎯 Project Overview
+---
 
-This project aims to develop a comprehensive analysis and prediction tool for HDB resale prices in Singapore. We combine machine learning models with interactive visualizations to help senior citizens understand pricing dynamics and make informed decisions with respect to downsizing.
+## Tech Stack
 
-**Project Goals:**
-- Analyze factors influencing HDB resale prices across Singapore
-- Build predictive models for price estimation
-- Create an interactive dashboard for exploring downsizing options
-- Provide insights for potential buyers and sellers
+- **Frontend**: Python Dash, Dash Bootstrap Components, Leaflet.js (via iframe)
+- **Backend**: FastAPI, Uvicorn, Pydantic
+- **ML**: XGBoost, scikit-learn, pandas, NumPy, joblib
+- **External APIs**: OneMap API (SLA) — geocoding, address resolution
 
-## 👥 Team Members
+---
 
-### Back-end Team (Modeling & Data Processing)
-| Name | Student ID | Role | Responsibilities |
-|------|-----------|------|------------------|
-| Avaneesh | Team Lead (Backend) | Data collection, model architecture |
-| Sanjeev | Data Engineer | Data preprocessing, feature engineering |
-| Aswin | ML Engineer | Model training, evaluation |
-| Vidushi | Data Analyst | EDA, statistical analysis |
+## Prerequisites
 
-### Front-end Team (Visualization & Interface)
-| Name | Student ID | Role | Responsibilities |
-|------|-----------|------|------------------|
-| [Name 5] | Team Lead (Frontend) | UI/UX design, dashboard architecture |
-| [Name 6] | Visualization Developer | Interactive charts, maps |
-| [Name 7] | Web Developer | Dashboard implementation |
-| [Name 8] | Integration Engineer | Backend-frontend integration |
+- Python 3.10+
+- OneMap account credentials — register at [https://www.onemap.gov.sg](https://www.onemap.gov.sg)
 
-## 🎯 Problem Statement
+---
 
-Understanding HDB resale prices is crucial for Singapore residents, as HDB flats represent a significant portion of household wealth. This project addresses:
+## Quick Start
 
-1. **Price Prediction**: Can we accurately predict HDB resale prices based on property characteristics and location?
-2. **Market Dynamics**: How do prices vary across towns and over time?
-3. **Affordability Analysis**: Which areas offer the best value for different buyer profiles?
-4. **Wealth Unlocking**: How much wealth can be unlocked through downsizing or lease buyback schemes?
+### 1. Clone the repository
 
-## 📊 Data Sources
+```bash
+git clone https://github.com/sanjeevr123/DSE3101-Project.git
+cd DSE3101-Project
+```
 
-1. **HDB Resale Flat Prices** (2017-2024)
-   - Source: [data.gov.sg](https://beta.data.gov.sg/)
-   - Records: ~150,000 transactions
-   - Features: Town, flat type, floor area, lease commence date, resale price, RPI
+### 2. Install dependencies
 
-2. **Amenities & Infrastructure**
-   - Source: [OneMap API](https://www.onemap.gov.sg/)
-   - Data: MRT stations, schools, shopping malls, parks
-   - Method: Distance calculations via API
+```bash
+pip install -r requirements.txt
+```
 
-3. **Planning Boundaries**
-   - Source: [data.gov.sg](https://beta.data.gov.sg/collections/1749/view)
-   - Data: Geographical boundaries of planning regions
+### 3. Configure environment
+
+In the `frontend/` directory, copy `.env.example` to `.env` and fill in your OneMap credentials:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+Edit `frontend/.env`:
+ONEMAP_API_EMAIL=your_email@example.com
+ONEMAP_API_PASSWORD=your_password
+
+### 4. Run the backend
+
+From the project root:
+
+```bash
+uvicorn backend.main:app --reload
+```
+
+Backend runs at `http://127.0.0.1:8000`. Visit `http://127.0.0.1:8000/docs` for the interactive API docs.
+
+### 5. Run the frontend
+
+In a separate terminal, from the `frontend/` directory:
+
+```bash
+python app.py
+```
+
+Open `http://127.0.0.1:8050` in your browser.
+
+---
+
+## API Reference
+
+### `POST /predict/sell`
+
+Estimates the selling price of the user's current flat.
+
+**Request body:**
+```json
+{
+  "postal": "560123",
+  "flat_type": "4 ROOM",
+  "floor_area_sqm": 93,
+  "remaining_lease": 72
+}
+```
+
+**Response:**
+```json
+{
+  "price": 750000,
+  "low": 697500,
+  "high": 802500,
+  "median_town": 720000,
+  "town": "ANG MO KIO"
+}
+```
+
+---
+
+### `POST /recommend`
+
+Returns the top 3 recommended listings based on user constraints and lifestyle preferences.
+
+**Request body:**
+```json
+{
+  "constraints": {
+    "max_budget": 600000,
+    "max_rooms": 3,
+    "preferred_towns": ["Tampines", "Bedok"]
+  },
+  "weights": {
+    "clinic": 8,
+    "hawker": 6,
+    "park": 5,
+    "mrt": 9
+  }
+}
+```
+
+**Response** (list of up to 3):
+```json
+[
+  {
+    "town": "Tampines",
+    "rooms": 3,
+    "postal": "520228",
+    "buy_price": 550000,
+    "listing_url": "https://www.propertyguru.com.sg/...",
+    "address_from_url": "228 SIMEI STREET 4 SINGAPORE 520228",
+    "predicted_price": 520000,
+    "valuation_label": "Above Market"
+  }
+]
+```
+
+`valuation_label` is one of: `Fair Value`, `Above Market`, `Below Market`.
+
+---
+
+## Data Sources
+
+| Dataset | Source | Usage |
+|---|---|---|
+| HDB Resale Transactions (1990–present) | [data.gov.sg](https://data.gov.sg) | XGBoost model training |
+| HDB Property Information | [data.gov.sg](https://data.gov.sg) | Lease commencement date lookup |
+| HDB Resale Price Index (RPI) | [data.gov.sg](https://data.gov.sg) | Price normalisation at training and inference |
+| PropertyGuru Listings | PropertyGuru (scraped) | Recommendation candidate pool (12,192 listings) |
+| OneMap API | [onemap.gov.sg](https://www.onemap.gov.sg) | Geocoding, amenity distances, town resolution |
