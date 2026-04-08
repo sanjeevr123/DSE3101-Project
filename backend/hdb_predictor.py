@@ -15,6 +15,52 @@ TREE_FEATURES    = artifacts['TREE_FEATURES']
 categorical_cols = artifacts['categorical_cols']
 CURRENT_RPI      = artifacts['CURRENT_RPI']
 
+# Per-town listing premium (transacted → asking price); 
+# PropertyGuru listings are asking prices, which are systematically higher.
+# Empirically derived from validation against real listings — premium areas get higher multiplier
+# Update whenever new listing data is available.
+
+TOWN_PREMIUM = {
+    'MARINE PARADE':     1.17,
+    'QUEENSTOWN':        1.15,
+    'CLEMENTI':          1.11,
+    'BUKIT MERAH':       1.10,
+    'BUKIT PANJANG':     1.10,
+    'HOUGANG':           1.09,
+    'BEDOK':             1.08,
+    'KALLANG/WHAMPOA':   1.08,
+    'JURONG EAST':       1.07,
+    'BUKIT BATOK':       1.07,
+    'CENTRAL AREA':      1.07,
+    'TAMPINES':          1.07,
+    'JURONG WEST':       1.06,
+    'CHOA CHU KANG':     1.06,
+    'SERANGOON':         1.06,
+    'TOA PAYOH':         1.06,
+    'PASIR RIS':         1.05,
+    'ANG MO KIO':        1.05,
+    'WOODLANDS':         1.05,
+    'SENGKANG':          1.05,
+    'YISHUN':            1.05,
+    'BISHAN':            1.04,
+    'PUNGGOL':           1.04,
+    'BUKIT TIMAH':       1.03,
+    'GEYLANG':           1.03,
+    'SEMBAWANG':         1.02,
+}
+
+DEFAULT_PREMIUM = 1.07
+
+# Flat type adjustment on top of town premium
+FLAT_TYPE_ADJUSTMENT = {
+    '2 ROOM':           1.035,
+    '3 ROOM':           1.014,
+    'EXECUTIVE':        1.008,
+    '4 ROOM':           0.998,
+    '5 ROOM':           0.993,
+    'MULTI-GENERATION': 1.000,
+}
+
 def _encode_and_predict(input_dict):
     """
     Shared helper used by both prediction functions.
