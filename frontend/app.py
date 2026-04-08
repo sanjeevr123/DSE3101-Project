@@ -470,7 +470,8 @@ def step_1_estimate():
         ], style=card_style),
     ])
 
-# Step 2 on what matters to you, which is just sliders for the 4 key amenities 
+# Step 2 on what matters to you
+# These are the sliders for the 4 key amenities 
 
 def step_2_preferences():
     slider_style = {"padding": "8px 6px 4px 6px"}
@@ -574,7 +575,7 @@ def step_4_lbs_page():
         input_style_big= input_style_big,
     )
 
-###Step 5: Results page - results card, map and comparison modal 
+# Step 5: Results page - results card, map and comparison modal 
 def step_5_results():
     return html.Div([
         html.Div("Step 5: Results", style={"fontSize": "36px", "fontWeight": "950"}),
@@ -586,7 +587,6 @@ def step_5_results():
             "marginBottom": "14px",
         }),
         html.Div([
-            #Left column is the recommendation cards and reset action
             html.Div([
                 html.Div(id="results_list", style={"marginTop": "16px"}),
                 html.Div([
@@ -598,7 +598,6 @@ def step_5_results():
                 "position": "relative",
             }),
 
-            #Right column is the interactive map
             html.Div([
                 html.Div("Map (zoom and drag)", style={
                     "fontSize": "22px",
@@ -628,7 +627,6 @@ def step_5_results():
             "gap": "18px",
             "alignItems": "flex-start",
         }),
-        #Loading overlay to deal w waiting time and prevent user from thinking it crashed 
         html.Div(id="results_loading_overlay", style={
             "position": "fixed",
             "top": "0",
@@ -643,7 +641,6 @@ def step_5_results():
             "flexDirection": "column",
         }, children=[
             html.Div([
-                # Spinner using Unicode https://unicode-table.com
                 html.Div("⏳", style={
                     "fontSize": "64px",
                     "marginBottom": "24px",
@@ -1445,7 +1442,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
 
     return html.Div([*cards]), map_doc, recs, lbs_result
 
-#Step 5 loading overlay callbacks
+# Step 5 loading overlay callbacks
 
 @app.callback(
     Output("results_loading_overlay", "style"),
@@ -1471,7 +1468,7 @@ def hide_loading_when_results_ready(results_list_children, step):
     if results_list_children:
         return {"display": "none", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
     
-    #Show loading if no content yet
+    # Show loading if no content yet
     return {"display": "flex", "position": "fixed", "top": "0", "left": "0", "right": "0", "bottom": "0", "backgroundColor": "rgba(0, 0, 0, 0.4)", "zIndex": "2000", "justifyContent": "center", "alignItems": "center", "flexDirection": "column"}
 
 
@@ -1496,11 +1493,11 @@ def hide_loading_when_results_ready(results_list_children, step):
     prevent_initial_call=True,
 )
 
-####Clear all stored app state and send the user back to step 1
+#### Clear all stored app state and send the user back to step 1
 def reset_all(n):
     return 1, None, None, None, None, None, None, None, None, None
 
-#Comparison modal callbacks
+# Comparison modal callbacks
 
 @app.callback(
     Output("results_map", "srcDoc", allow_duplicate=True),
@@ -1537,7 +1534,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
         }
     ]
     
-    #Fetch only the amenities for the focused recommendation
+    # Fetch only the amenities for the focused recommendation
     amenities = []
     rec_lat, rec_lon = focused_rec["lat"], focused_rec["lon"]
     
@@ -1563,7 +1560,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
             "rec_index": 0,  
         })
     
-    #Hawker centres & food court
+    # Hawker centres & food court
     hawker_amenities = get_nearby_amenities("hawker", rec_lat, rec_lon, radius_km=1.0, limit=100)
     hawker_with_dist = []
     for amenity in hawker_amenities:
@@ -1584,7 +1581,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
             "rec_index": 0,  
         })
     
-    #Transport (MRT n LRT)
+    # Transport (MRT n LRT)
     transport_amenities = get_nearby_amenities("transport", rec_lat, rec_lon, radius_km=1.0, limit=100)
     transport_with_dist = []
     for amenity in transport_amenities:
@@ -1605,7 +1602,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
             "rec_index": 0,  
         })
     
-    #Nature parks n fitness corners (recreation)
+    # Nature parks n fitness corners (recreation)
     park_amenities = get_nearby_amenities("parks", rec_lat, rec_lon, radius_km=1.0, limit=100)
     park_with_dist = []
     for park in park_amenities:
@@ -1628,7 +1625,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
     
     logger.info(f"[Focus] Found {len(amenities)} total amenities for focused flat")
     
-    #Generate and return the updated map
+    # Generate and return the updated map
     map_doc = leaflet_map_html(rec_lat, rec_lon, points, amenities, zoom=14)
     return map_doc
 
@@ -1638,7 +1635,7 @@ def update_map_for_focused_flat(focused_index, recs_data, sell_geo, sell_payload
     prevent_initial_call=True,
 )
 
-##for comparison modal
+## For comparison modal
 def update_selected_units(checkbox_values):
     if not checkbox_values:
         return []
@@ -1662,7 +1659,7 @@ def update_selected_units(checkbox_values):
 def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indices):
     trig = dash.callback_context.triggered_id
 
-    #Always close modal when navigating steps or showing results
+    # Always close modal when navigating steps or showing results
     if trig in ["step", "recs_data"]:
         return False
 
@@ -1670,7 +1667,7 @@ def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indic
         return False
 
     if trig == "btn_compare":
-        #only open if user has selected at least one of the units
+        # Only open if user has selected at least one of the units
         return bool(selected_indices)
 
     return dash.no_update
@@ -1686,7 +1683,7 @@ def control_comparison_modal(step, recs_data, n_compare, n_close, selected_indic
 )
 
 
-#### comparison model main tabular form
+## Comparison model main tabular form
 def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_result):
 
     modal_style_hidden = {
@@ -1727,7 +1724,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
                 style={"fontSize": "16px", "color": "#ef4444"},
             )
 
-        #normalise selected indices
+        # Normalise selected indices
         normalised_indices = []
         for raw_idx in selected_indices:
             try:
@@ -1769,7 +1766,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
             )
 
         # 
-        # detailed comparison table
+        # Detailed comparison table
         # 
     
         headers = ["Metric", *[item["label"] for item in selected_items]]
@@ -1815,7 +1812,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
             return str(value) if value not in (None, "") else "N/A"
 
 
-#####  for comparison part to display the best of the metric
+#####  For comparison part to display the best of the metric
         metric_perf = {}
         for _, metric_key, prefer in metrics:
             values = [_metric_value(item["data"], metric_key) for item in selected_items]
@@ -2002,7 +1999,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
         )
 
 
-##### insights box bside to show the best option based on cash unlocked
+#### Insights box bside to show the best option based on cash unlocked
         insight_box = html.Div([
             html.Div("Recommendation Insight", style={"fontSize": "22px", "fontWeight": "900", "marginBottom": "10px"}),
             html.Ul([
