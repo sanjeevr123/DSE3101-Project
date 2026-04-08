@@ -66,7 +66,8 @@ DSE3101-Project/
 │   ├── 01_data_collection.ipynb              # Raw data ingestion and geospatial feature computation
 │   ├── 02_data_exploration.ipynb             # EDA, distribution analysis, correlation heatmaps
 │   ├── 03_final_models.ipynb                 # Final model training pipeline and evaluation
-│   ├── xgboost_training.ipynb                # Initial XGBoost hyperparameter tuning and cross-validation
+│   ├── xgboost_trial.ipynb                   # Initial XGBoost hyperparameter tuning and cross-validation
+│   ├── xgboost_v1.ipynb                      # Version 1 of XGBoost model
 │   ├── SAI_implementation.ipynb              # SAI score derivation and validation on PropertyGuru data
 │   ├── propertyguru_listings_scraping.ipynb  # PropertyGuru scraping pipeline
 │   └── propertyguru_listings_prep.ipynb      # Listing data cleaning and amenity enrichment
