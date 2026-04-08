@@ -38,7 +38,6 @@ def _encode_and_predict(input_dict):
     log_pred = xgb_model.predict(input_df)[0]
     return log_pred
 
-
 # ============================================================
 # FUNCTION 1: For PropertyGuru listings dataset
 # Uses all available engineered features from the listing row.
@@ -56,6 +55,10 @@ def predict_price_listing(listing_row):
             return val if pd.notna(val) else np.nan
         except (KeyError, TypeError):
             return np.nan
+        
+    town      = str(safe_get(listing_row, 'hdb_town')).upper().strip()
+    flat_type = str(safe_get(listing_row, 'flat_type')).upper().strip()
+    town_flat_type = f"{town}_{flat_type}"
 
     input_dict = {
         'town':                              safe_get(listing_row, 'hdb_town'),
@@ -66,6 +69,8 @@ def predict_price_listing(listing_row):
         'storey_category':                   safe_get(listing_row, 'floor_category'),
         'region':                            safe_get(listing_row, 'region'),
         'is_mature_estate':                  safe_get(listing_row, 'is_mature_estate'),
+        'town_flat_type':                    town_flat_type,
+        'max_floor_lvl':                     safe_get(listing_row, 'max_floor_lvl'),
         'nearest_mrt_distance_m':            safe_get(listing_row, 'nearest_mrt_distance_m'),
         'nearest_clinic_distance_m':         safe_get(listing_row, 'nearest_clinic_distance_m'),
         'nearest_park_distance_m':           safe_get(listing_row, 'nearest_park_distance_m'),
@@ -77,10 +82,11 @@ def predict_price_listing(listing_row):
         'num_community_club_within_1000m':   safe_get(listing_row, 'num_community_club_within_1000m'),
         'num_hawker_within_1000m':           safe_get(listing_row, 'num_hawker_within_1000m'),
         'num_amenities_within_1000m':        safe_get(listing_row, 'num_amenities_within_1000m'),
+
     }
 
     log_pred = _encode_and_predict(input_dict)
-
+    
     # floor_area_sqm is critical for inverse transform — fall back to flat type median if missing
     floor_area = safe_get(listing_row, 'floor_area_sqm')
     if np.isnan(floor_area):
@@ -90,11 +96,13 @@ def predict_price_listing(listing_row):
         }
         floor_area = FLAT_TYPE_MEDIAN_SQM.get(listing_row.get('flat_type', ''), 90)
 
-    # Convert log prediction → dollar value
+    # Convert log prediction → dollar value → listing price
     transacted = np.exp(log_pred) * floor_area * CURRENT_RPI
 
-    return round(transacted, 2)
+    listing_premium = TOWN_PREMIUM.get(safe_get(listing_row, 'hdb_town'), DEFAULT_PREMIUM)
+    flat_adj        = FLAT_TYPE_ADJUSTMENT.get(safe_get(listing_row, 'flat_type'), 1.0)
 
+    return round(transacted * listing_premium * flat_adj, 2)
 
 # ============================================================
 # FUNCTION 2: User-facing price estimator
@@ -116,6 +124,9 @@ def predict_price_user(town, flat_type, floor_area, sold_year,
         print(result['lower_bound'])
         print(result['upper_bound'])
     """
+    town           = str(town).upper().strip()
+    flat_type      = str(flat_type).upper().strip()
+    town_flat_type = f"{town}_{flat_type}"
 
     # ============================================================
     # Get best matching historical reference data for imputation
@@ -143,21 +154,20 @@ def predict_price_user(town, flat_type, floor_area, sold_year,
     if remaining_lease is None:
         remaining_lease = int(ref['remaining_lease'].median())
 
-    flat_age       = 99 - remaining_lease
-    lease_commence = sold_year - flat_age
-
     # ============================================================
     # Build input using actual user values + imputed medians
     # ============================================================
     input_dict = {
         'town':                              town,
         'flat_type':                         flat_type,
+        'town_flat_type':                    town_flat_type,
         'floor_area_sqm':                    floor_area,
         'remaining_lease':                   remaining_lease,
         'sold_year':                         sold_year,
         'storey_category':                   ref['storey_category'].mode()[0],
         'region':                            ref['region'].mode()[0],
         'is_mature_estate':                  int(ref['is_mature_estate'].mode()[0]),
+        'max_floor_lvl':                     int(ref['max_floor_lvl'].median()),
         'nearest_mrt_distance_m':            ref['nearest_mrt_distance_m'].median(),
         'nearest_clinic_distance_m':         ref['nearest_clinic_distance_m'].median(),
         'nearest_park_distance_m':           ref['nearest_park_distance_m'].median(),
@@ -171,18 +181,22 @@ def predict_price_user(town, flat_type, floor_area, sold_year,
         'num_amenities_within_1000m':        ref['num_amenities_within_1000m'].median(),
     }
 
-    # Convert log prediction → dollar value
-    log_pred        = _encode_and_predict(input_dict)
-    estimated_price = np.exp(log_pred) * floor_area * CURRENT_RPI
+    # Convert log prediction → dollar value → listing price
+    log_pred   = _encode_and_predict(input_dict)
+    transacted = np.exp(log_pred) * floor_area * CURRENT_RPI
+
+    listing_premium = TOWN_PREMIUM.get(town, DEFAULT_PREMIUM)
+    flat_adj        = FLAT_TYPE_ADJUSTMENT.get(flat_type, 1.0)
+    estimated_price = transacted * listing_premium * flat_adj
 
     # ============================================================
     # Return price with indicative range
-    # This honestly reflects the uncertainty from the model
+    # This honestly reflects the uncertainty from model
     # ============================================================
     return {
         'estimated_price': round(estimated_price, 2),
-        'lower_bound':     round(estimated_price * (1 - 0.10), 2),
-        'upper_bound':     round(estimated_price * (1 + 0.10), 2),
+        'lower_bound':     round(estimated_price * (1-0.10), 2),
+        'upper_bound':     round(estimated_price * (1+0.10), 2),
         'note': (
             f"Estimated based on {town} {flat_type} historical averages. "
             f"Price range reflects a ±10% indicative band. "
