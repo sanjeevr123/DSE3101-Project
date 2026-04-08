@@ -286,8 +286,8 @@ def _load_pg_data():
 #App setup 
 
 app = FastAPI(
-    title="HDB Resale Price Predictor",
-    description="RPI-normalized XGBoost model for Singapore HDB resale prices.",
+    title="HomeCompassAPI",
+    description="HomeCompassAPI",
     version="1.0.0",
 )
 
@@ -515,7 +515,7 @@ def recommend(body: RecommendRequest):
     results = []
     print(f"\nDEBUG SAI Scores (top 3):")
     for _, row in top3.iterrows():
-        # ── Fair value calculation ────────────────────────────────────────────
+        # Fair value calculation 
         flat_type = room_to_flat.get(int(row["room_count"]), "4 ROOM")
         try:
             row_dict = row.to_dict()
