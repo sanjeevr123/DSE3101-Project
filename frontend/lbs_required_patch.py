@@ -154,12 +154,31 @@ def step_4_lbs(card_style: Dict[str, Any], label_style: Dict[str, Any], input_st
             ),
             html.Div(
                 "Instead of moving to a smaller flat, you can retain part of your lease, receive a cash payout, and top up your CPF Retirement Account. "
-                "This is useful for households that prefer improving retirement support.",
-                style={"fontSize": "18px", "fontWeight": "600", "opacity": "0.82", "lineHeight": "1.5", "marginBottom": "18px"},
+                "This is useful for households that prefer improving retirement support while staying in their current flat.",
+                style={"fontSize": "20px", "fontWeight": "600", "opacity": "0.82", "lineHeight": "1.5", "marginBottom": "18px"},
             ),
+            html.Div([
+    "Not sure about LBS? ",
+    html.A(
+        "Click here to learn more about the Lease Buyback Scheme.",
+        href="https://www.hdb.gov.sg/managing-my-home/retirement-planning/monetising-flat-for-retirement/lease-buyback-scheme-lbs",
+        target="_blank",
+        style={"color": "#E2231A", "fontWeight": "800", "fontSize": "20px"}
+    ),
+], style={"fontSize": "20px", "fontWeight": "600", "marginBottom": "16px"}),
+
+html.Div([
+    "Not sure about your CPF Retirement Account balance? ",
+    html.A(
+        "Click here to log in to the CPF portal to view your balance.",
+        href="https://www.cpf.gov.sg/member/ds/",
+        target="_blank",
+        style={"color": "#00843D", "fontWeight": "800", "fontSize": "20px"}
+    ),
+], style={"fontSize": "18px", "fontWeight": "600", "marginBottom": "20px"}),
             html.Div(
                 "Fill in the details below to estimate the outcome of choosing the Lease Buyback Scheme.",
-                style={"fontSize": "16px", "fontWeight": "700", "opacity": "0.78", "marginBottom": "14px"},
+                style={"fontSize": "20px", "fontWeight": "700", "opacity": "0.78", "marginBottom": "14px"},
             ),
 
             html.Div("Number of owners", style=label_style),

@@ -1,14 +1,9 @@
 """
-Run locally:
-pip install dash requests (for frontend)   --- changed to requirements.txt
+To run locally:
+pip install -r ../requirements.txt 
 python app.py
 Open http://127.0.0.1:8050
 
-Distribution of work:
-- Sharuz: state management, callbacks, backend integration
-- Nat: Leaflet map, markers n geocoding
-- Amanda: UI, styling, layouts, step indicator, form components
-- Harsha: LBS computation and results output 
 """
 # 
 # Imports and app configuration
@@ -475,31 +470,59 @@ def step_1_estimate():
         ], style=card_style),
     ])
 
-# Step 2 on what matters to you, which is just sliders for the 4 key amenities (changed emoji from here https://unicode-table.com)
+# Step 2 on what matters to you, which is just sliders for the 4 key amenities 
 
 def step_2_preferences():
-    slider_style = {"padding": "10px 6px"}
+    slider_style = {"padding": "8px 6px 4px 6px"}
+    label_with_sub_style = {"marginBottom": "18px"}
     return html.Div([
-        html.Div("Step 2: Tell us what matters to you by moving the sliders from 1 to 10", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("Step 2: What matters to you?", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("Move each slider to show how important each amenity is to you. 1 = Not important, 10 = Very important.", style={
+            "fontSize": "20px", "fontWeight": "600", "opacity": "0.7", "marginTop": "8px", "marginBottom": "20px"
+        }),
         html.Div([
-            html.Div("🏥 Healthcare nearby", style=label_style),
-            html.Div(dcc.Slider(id="pref_healthcare", min=1, max=10, step=1, value=8,
-                                marks={i: str(i) for i in range(1, 11)}), style=slider_style),
-            html.Hr(),
+            # Healthcare
+            html.Div([
+                html.Div("🏥  Clinics and healthcare", style={**label_style, "fontSize": "26px"}),
+                html.Div("How important is it to have clinics or hospitals close to home?", style={
+                    "fontSize": "17px", "opacity": "0.65", "marginBottom": "6px", "fontWeight": "600"
+                }),
+                html.Div(dcc.Slider(id="pref_healthcare", min=1, max=10, step=1, value=8,
+                                    marks={i: str(i) for i in range(1, 11)}), style=slider_style),
+            ], style=label_with_sub_style),
+            html.Hr(style={"margin": "10px 0 20px 0"}),
 
-            html.Div("🚆 MRT", style=label_style),
-            html.Div(dcc.Slider(id="pref_transport", min=1, max=10, step=1, value=7,
-                                marks={i: str(i) for i in range(1, 11)}), style=slider_style),
-            html.Hr(),
+            # Transport
+            html.Div([
+                html.Div("🚇  MRT", style={**label_style, "fontSize": "26px"}),
+                html.Div("How important is it to have an MRT station nearby?", style={
+                    "fontSize": "17px", "opacity": "0.65", "marginBottom": "6px", "fontWeight": "600"
+                }),
+                html.Div(dcc.Slider(id="pref_transport", min=1, max=10, step=1, value=7,
+                                    marks={i: str(i) for i in range(1, 11)}), style=slider_style),
+            ], style=label_with_sub_style),
+            html.Hr(style={"margin": "10px 0 20px 0"}),
 
-            html.Div("🍲 Hawker centres / food", style=label_style),
-            html.Div(dcc.Slider(id="pref_hawker", min=1, max=10, step=1, value=6,
-                                marks={i: str(i) for i in range(1, 11)}), style=slider_style),
-            html.Hr(),
+            # Hawker
+            html.Div([
+                html.Div("🍜  Hawker centres", style={**label_style, "fontSize": "26px"}),
+                html.Div("How important is it to have hawker centres nearby?", style={
+                    "fontSize": "17px", "opacity": "0.65", "marginBottom": "6px", "fontWeight": "600"
+                }),
+                html.Div(dcc.Slider(id="pref_hawker", min=1, max=10, step=1, value=6,
+                                    marks={i: str(i) for i in range(1, 11)}), style=slider_style),
+            ], style=label_with_sub_style),
+            html.Hr(style={"margin": "10px 0 20px 0"}),
 
-            html.Div("🌳 Parks / recreation", style=label_style),
-            html.Div(dcc.Slider(id="pref_recreation", min=1, max=10, step=1, value=6,
-                                marks={i: str(i) for i in range(1, 11)}), style=slider_style),
+            # Parks
+            html.Div([
+                html.Div("🌳  Parks and green spaces", style={**label_style, "fontSize": "26px"}),
+                html.Div("How important is it to have parks or gardens nearby?", style={
+                    "fontSize": "17px", "opacity": "0.65", "marginBottom": "6px", "fontWeight": "600"
+                }),
+                html.Div(dcc.Slider(id="pref_recreation", min=1, max=10, step=1, value=6,
+                                    marks={i: str(i) for i in range(1, 11)}), style=slider_style),
+            ], style=label_with_sub_style),
 
             html.Div(id="pref_saved_banner"),
         ], style=card_style),
@@ -509,18 +532,20 @@ def step_2_preferences():
 
 def step_3_limits():
     return html.Div([
-        html.Div("Step 3: Tell us your limits", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("Step 3: Your new home preferences", style={"fontSize": "36px", "fontWeight": "950"}),
+        html.Div("This helps us find flats that match your budget and preferences.", style={
+            "fontSize": "20px", "fontWeight": "600", "opacity": "0.7", "marginTop": "8px", "marginBottom": "20px"
+        }),
         html.Div([
-            html.Div("💵 Tell us your maximum budget to buy ($)", style=label_style),
+            html.Div("💵 What is the maximum budget for a new home ($)?", style=label_style),
             dcc.Input(id="lim_budget", type="number", value=550000, style=input_style_big),
             html.Div(style={"height": "14px"}),
 
-            html.Div("🛏️ Tell us which flat type you want to buy", style=label_style),
+            html.Div("🛏️ What flat type do you need? (eg. 3 = 3-room flat)", style=label_style),
             dcc.Dropdown(id="lim_min_rooms", options=[2, 3, 4, 5], value=3, clearable=False,
                          style={"fontSize": "22px"}),
-            html.Div(style={"height": "14px"}),
 
-            html.Div("📍 Tell us which towns you prefer (optional)", style=label_style),
+            html.Div("📍 Do you have a preferred area to move to? (Optional)", style=label_style),
             dcc.Dropdown(
                 id="lim_towns",
                 options=[
@@ -785,8 +810,6 @@ def render_step(step):
     pages = {1: step_1_estimate, 2: step_2_preferences, 3: step_3_limits, 4: step_4_lbs_page, 5: step_5_results,}
     return pages[step](), nav_row(step), step_indicator(step)
 
-#Handle the next/back navigation between steps
-
 @app.callback(
     Output("step", "data"),
     Input("btn_next", "n_clicks"),
@@ -795,7 +818,6 @@ def render_step(step):
     State("lbs_result", "data"),
     prevent_initial_call=True,
 )
-#enfore lbs validation 
 def go_next_back(n_next, n_back, step, lbs_result):
     trig = dash.callback_context.triggered_id
     step = int(step or 1)
@@ -870,7 +892,7 @@ def autosave_step1(postal, flat_type, area, lease):
         
         if geo:
             logger.info(f"[Geocoding] Found: {geo}")
-            msg = html.Div("✅ Postal code saved. Location found.", style=banner_ok)
+            msg = html.Div("✅ Saved. Please click estimate price before you go to the next page", style=banner_ok)
             return payload, geo, msg
         else:
             logger.warning(f"[Geocoding] Could not find postal code: {postal}")
@@ -1377,7 +1399,7 @@ def run_results(main_content, step, sell_payload, sell_geo, sell_pred, prefs_w, 
             html.Div(f"Cash unlocked (estimate): ${r['cash_unlocked']:,.0f}", style={
                 "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.6",
             }),
-            html.Div(f"Buy price (estimate): ${r['buy_price']:,.0f}", style={
+            html.Div(f"Listed Price: ${r['buy_price']:,.0f}", style={
                 "fontSize": "22px", "fontWeight": "900", "lineHeight": "1.5", "marginTop": "4px",
             }),
             html.Details([
@@ -1755,7 +1777,7 @@ def render_comparison_modal(is_open, selected_indices, recs_data, results_lbs_re
         metrics = [
             ("Town", "town", None),
             ("Rooms", "rooms", None),
-            ("Buy Price (est.)", "buy_price", "min"),
+            ("Listed Price", "buy_price", "min"),
             ("Cash Unlocked (est.)", "cash_unlocked", "max"),
             ("Distance from Your Flat", "dist_from_home_km", "min"),
             ("Nearest Healthcare", "nearest_healthcare_name", None),

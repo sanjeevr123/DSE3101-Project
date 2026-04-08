@@ -3,6 +3,15 @@ FastAPI for HomeCompass App: Backend Integration
 Run:  uvicorn backend.main:app --reload
 """
 
+######################################################################
+# main.py is the FastAPI Backend server which exposes two
+# endpoints used by frontend /predict/sell and /recommend.
+# This handles all request and response logic such as resolving
+# postal codes to HDB towns, filtering and scoring propertyguru 
+# listings by SAI, computing valuation and whether fair deal or not,
+# and returns structured JSON to frontend to output
+######################################################################
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -22,8 +31,7 @@ from backend.hdb_predictor import predict_price_listing
 
 ONEMAP_SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
 
-# ── Block+street → town lookup ────────────────────────────────────────────────
-
+#Block+street → town lookup
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOOKUP_PATH = os.environ.get("BLOCK_STREET_LOOKUP", os.path.join(_BASE_DIR, "models", "block_street_to_town.json"))
 _BLOCK_STREET_LOOKUP: dict[str, str] = {}
@@ -233,6 +241,10 @@ def _load_pg_data():
     try:
         _pg_df = pd.read_csv(PG_DATA_PATH)
 
+        # Derive room_count from flat_type since new CSV dropped this column
+        flat_type_to_rooms = {'2 ROOM': 2, '3 ROOM': 3, '4 ROOM': 4, '5 ROOM': 5, 'EXECUTIVE': 6}
+        _pg_df['room_count'] = _pg_df['flat_type'].map(flat_type_to_rooms).fillna(4)
+
         # Parse price: "S$ 850,000" → 850000
         _pg_df["buy_price"] = (
             _pg_df["price_detail"]
@@ -249,7 +261,6 @@ def _load_pg_data():
             .str.zfill(6)
         )
 
-        #address_from_url fallback
         if "address_from_url" not in _pg_df.columns:
             _pg_df["address_from_url"] = _pg_df["onemap_full_address"]
 
@@ -525,7 +536,7 @@ def recommend(body: RecommendRequest):
             valuation_label = "N/A"
             print(f"  [WARN] Valuation failed for {row['hdb_town']}: {e}")
 
-        print(f"  {row['address_from_url']} | town={row['hdb_town']} | rooms={int(row['room_count'])} | price=${int(row['buy_price']):,} | SAI={row['sai_score']} | predicted=${predicted_price:,} | valuation={valuation_label}")
+        print(f"  {row['onemap_full_address']} | town={row['hdb_town']} | rooms={int(row['room_count'])} | price=${int(row['buy_price']):,} | SAI={row['sai_score']} | predicted=${predicted_price:,} | valuation={valuation_label}")
         print(f"    distances: clinic={row.get('nearest_clinic_distance_m','N/A'):.0f}m, hawker={row.get('nearest_hawker_distance_m','N/A'):.0f}m, park={row.get('nearest_park_distance_m','N/A'):.0f}m, mrt={row.get('nearest_mrt_distance_m','N/A'):.0f}m")
         print(f"    counts: clinic={row.get('num_clinic_within_1000m','N/A')}, hawker={row.get('num_hawker_within_1000m','N/A')}, park={row.get('num_park_within_1000m','N/A')}, mrt={row.get('num_mrt_within_1000m','N/A')}")
 
