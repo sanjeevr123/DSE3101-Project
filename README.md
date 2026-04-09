@@ -59,30 +59,31 @@ Frontend (Dash) — 5-step guided interface
 ```text
 DSE3101-Project/
 ├── backend/
-│   ├── main.py                               # FastAPI app entry point; defines all API endpoints
-│   ├── model.py                              # Model loading, inference logic, listing price premiums
-│   ├── hdb_predictor.py                      # Core prediction functions (predict_price_user,
-│   │                                         # predict_price_listing)
-│   ├── 01_data_collection.ipynb              # Raw data ingestion and geospatial feature computation
-│   ├── 02_data_exploration.ipynb             # EDA, distribution analysis, correlation heatmaps
-│   ├── 03_final_models.ipynb                 # Final models training pipeline and evaluation
-│   ├── linear_regression_trial.ipynb         # Initial linear regression model development 
-│   ├── xgboost_trial.ipynb                   # Initial XGBoost hyperparameter tuning and cross-validation
-│   ├── xgboost_v1.ipynb                      # Version 1 of XGBoost model
-│   ├── SAI_implementation.ipynb              # SAI score derivation and validation on PropertyGuru data
-│   ├── propertyguru_listings_scraping.ipynb  # PropertyGuru scraping pipeline
-│   └── propertyguru_listings_prep.ipynb      # Listing data cleaning and amenity enrichment
+│   ├── main.py                                # FastAPI app entry point; defines all API endpoints
+│   ├── model.py                               # Model loading, inference logic, listing price premiums
+│   ├── hdb_predictor.py                       # Core prediction functions (predict_price_user,
+│   │                                          # predict_price_listing)
+│   ├── 01_data_collection.ipynb               # Raw data ingestion and geospatial feature computation
+│   ├── 02_data_exploration.ipynb              # EDA, distribution analysis, correlation heatmaps
+│   ├── 03_final_models.ipynb                  # Final models training pipeline and evaluation
+│   ├── test/             
+    |   ├── linear_regression_v1.ipynb         # Initial linear regression model development 
+    |   ├── xgboost_v1.ipynb                   # Initial XGBoost hyperparameter tuning and cross-validation
+    |   ├── xgboost_v2.ipynb                   # Version 2 of XGBoost model
+│   ├── SAI_implementation.ipynb               # SAI score derivation and validation on PropertyGuru data
+│   ├── propertyguru_listings_scraping.ipynb   # PropertyGuru scraping pipeline
+│   └── propertyguru_listings_prep.ipynb       # Listing data cleaning and amenity enrichment
 ├── frontend/
-│   ├── app.py                                # Dash app entry point; five-step UI layout and callbacks
+│   ├── app.py                                 # Dash app entry point; five-step UI layout and callbacks
 │   ├── config/
-│   │   ├── constants.py                      # App-wide constants (town lists, flat types, LBS parameters)
-│   │   ├── settings.py                       # Environment and API configuration
-│   │   └── style.py                          # UI styling and theme definitions
+│   │   ├── constants.py                       # App-wide constants (town lists, flat types, LBS parameters)
+│   │   ├── settings.py                        # Environment and API configuration
+│   │   └── style.py                           # UI styling and theme definitions
 │   ├── services/
-│   │   ├── api.py                            # HTTP calls to FastAPI backend
-│   │   └── mock_backend.py                   # Mock responses for local UI development without backend
+│   │   ├── api.py                             # HTTP calls to FastAPI backend
+│   │   └── mock_backend.py                    # Mock responses for local UI development without backend
 │   └── utils/
-│       └── helpers.py                        # Shared utility functions (formatting, validation)
+│       └── helpers.py                         # Shared utility functions (formatting, validation)
 ├── data/
 │   └── raw/
 │       ├── HDB_full_resale_info.csv.gz        # Full HDB resale transaction dataset (1990–2026, ~971k rows)
