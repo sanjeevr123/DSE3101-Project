@@ -63,16 +63,16 @@ DSE3101-Project/
 │   ├── model.py                               # Model loading, inference logic, listing price premiums
 │   ├── hdb_predictor.py                       # Core prediction functions (predict_price_user,
 │   │                                          # predict_price_listing)
-│   ├── 01_data_collection.ipynb               # Raw data ingestion and geospatial feature computation
+│   ├── 01_data_collection.ipynb               # Raw HDB resale transactions data ingestion and geospatial feature computation
 │   ├── 02_data_exploration.ipynb              # EDA, distribution analysis, correlation heatmaps
-│   ├── 03_final_models.ipynb                  # Final models training pipeline and evaluation
-│   ├── test/             
-    |   ├── linear_regression_v1.ipynb         # Initial linear regression model development 
-    |   ├── xgboost_v1.ipynb                   # Initial XGBoost hyperparameter tuning and cross-validation
-    |   ├── xgboost_v2.ipynb                   # Version 2 of XGBoost model
-│   ├── SAI_implementation.ipynb               # SAI score derivation and validation on PropertyGuru data
-│   ├── propertyguru_listings_scraping.ipynb   # PropertyGuru scraping pipeline
-│   └── propertyguru_listings_prep.ipynb       # Listing data cleaning and amenity enrichment
+│   ├── 03_final_models.ipynb                  # Final model training pipelines and evaluation
+│   ├── SAI_implentation.ipynb                 # SAI score function derivation and validation on PropertyGuru data
+│   ├── propertyguru_listings_scraping.ipynb   # PropertyGuru listing data scraping pipeline
+│   ├── propertyguru_listings_prep.ipynb       # Listing data cleaning and amenity enrichment
+│   └── test/
+│       ├── linear_regression_v1.ipynb         # Initial linear regression model development
+│       ├── xgboost_v1.ipynb                   # Initial XGBoost hyperparameter tuning and cross-validation
+│       └── xgboost_v2.ipynb                   # Version 2 of XGBoost model
 ├── frontend/
 │   ├── app.py                                 # Dash app entry point; five-step UI layout and callbacks
 │   ├── config/
@@ -82,23 +82,43 @@ DSE3101-Project/
 │   ├── services/
 │   │   ├── api.py                             # HTTP calls to FastAPI backend
 │   │   └── mock_backend.py                    # Mock responses for local UI development without backend
-│   └── utils/
-│       └── helpers.py                         # Shared utility functions (formatting, validation)
+│   ├── utils/
+│   │   └── helpers.py                         # Shared utility functions (formatting, validation)
+│   ├── assets/
+│   │   └── HomeCompass.png                    # App logo / branding asset
+│   ├── lbs_required_patch.py                  # Patch for LBS dependency compatibility
+│   ├── test_healthcare.py                     # Tests for healthcare amenity distance logic
+│   ├── _debug_distance.py                     # Debug script for distance calculations
+│   └── _debug_themes.py                       # Debug script for UI theme rendering
 ├── data/
 │   └── raw/
-│       ├── HDB_full_resale_info.csv.gz        # Full HDB resale transaction dataset (1990–2026, ~971k rows)
-│       ├── HDBPropertyInformation.csv         # Lease commencement dates for LBS calculation
+│       ├── HDB_full_resale_info.csv.gz        # Full cleaned and transformed HDB resale transaction dataset (2015–2026, ~250k rows)
+│       ├── HDBPropertyInformation.csv         # Supplementary information to enrich HDB dataset
 │       ├── HousingAndDevelopmentBoard...csv   # Quarterly RPI data
+│       ├── hdb_listings.csv                   # Govt. HDB resale listing data
+│       ├── hdb_model_artifacts.pkl            # Serialised model artifacts (v1)
+│       ├── hdb_model_artifacts_v2.pkl         # Serialised model artifacts (v2)
+│       ├── propertyguru_full.csv              # Raw scraped PropertyGuru listings
 │       ├── propertyguru_listings_final.csv    # Scraped and cleaned PropertyGuru listings (12,192)
 │       ├── CHASClinics.geojson                # Clinic locations (SLA)
 │       ├── CommunityClubs.geojson             # Community club locations
 │       ├── HawkerCentresGEOJSON.geojson       # Hawker centre locations
 │       ├── LTAMRTStationExitGEOJSON.geojson   # MRT station exits (LTA)
 │       ├── NParksParksandNatureReserves.geojson  # Parks and nature reserves (NParks)
-│       └── address_coords_cache.csv           # Cached geocoding results to reduce OneMap API calls
+│       ├── Vaccination_Polyclinics.geojson    # Vaccination polyclinic locations
+│       ├── ResaleFlatPrices.zip               # Archived resale flat price CSVs
+│       ├── Resale Flat Prices (...) 1990-1999.csv          # Raw HDB resale transaction data, 1990–1999
+│       ├── Resale Flat Prices (...) Mar 2012-Dec 2014.csv  # Raw HDB resale transaction data, 2012–2014
+│       ├── Resale Flat Prices (...) Jan 2015-Dec 2016.csv  # Raw HDB resale transaction data, 2015–2016
+│       ├── Resale flat prices (...) Jan-2017 onwards.csv   # Raw HDB resale transaction data from Jan 2017 onwards
+│       ├── street_counts_progress.csv         # Intermediate progress cache for street-level counts
+│       ├── address_coords_cache.csv           # Cached geocoding results to reduce OneMap API calls
+│       └── correlation_heatmap.png            # Saved correlation heatmap from EDA
 ├── models/
-│   ├── hdb_model_artifacts_v2.pkl             # Serialised XGBoost model, encoders, and training artifacts
+│   ├── hybrid_model.pkl                       # Serialised hybrid prediction model
 │   └── block_street_to_town.json              # Lookup table mapping block/street to HDB town
+├── onemap_all_themes_full.json                # Full OneMap themes data (parsed)
+├── onemap_all_themes_raw.txt                  # Raw OneMap themes API response
 ├── requirements.txt
 └── README.md
 ```
