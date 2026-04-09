@@ -60,13 +60,13 @@ Frontend (Dash) — 5-step guided interface
 DSE3101-Project/
 ├── backend/
 │   ├── main.py                                # FastAPI app entry point; defines all API endpoints
-│   ├── model.py                               # Model loading, inference logic, listing price premiums
+│   ├── model.py                               # Model loading, inference logic
 │   ├── hdb_predictor.py                       # Core prediction functions (predict_price_user,
 │   │                                          # predict_price_listing)
-│   ├── 01_data_collection.ipynb               # Raw HDB resale transactions data ingestion and geospatial feature computation
+│   ├── 01_data_collection.ipynb               # Data preprocessing + geospatial feature computation
 │   ├── 02_data_exploration.ipynb              # EDA, distribution analysis, correlation heatmaps
 │   ├── 03_final_models.ipynb                  # Final model training pipelines and evaluation
-│   ├── SAI_implentation.ipynb                 # SAI score function derivation and validation on PropertyGuru data
+│   ├── SAI_implentation.ipynb                 # SAI score function derivation 
 │   ├── propertyguru_listings_scraping.ipynb   # PropertyGuru listing data scraping pipeline
 │   ├── propertyguru_listings_prep.ipynb       # Listing data cleaning and amenity enrichment
 │   └── test/
@@ -92,7 +92,7 @@ DSE3101-Project/
 │   └── _debug_themes.py                       # Debug script for UI theme rendering
 ├── data/
 │   └── raw/
-│       ├── HDB_full_resale_info.csv.gz        # Full cleaned and transformed HDB resale transaction dataset (2015–2026, ~250k rows)
+│       ├── HDB_full_resale_info.csv.gz        # Cleaned HDB resale dataset (2015–2026, ~250k rows)
 │       ├── HDBPropertyInformation.csv         # Supplementary information to enrich HDB dataset
 │       ├── HousingAndDevelopmentBoard...csv   # Quarterly RPI data
 │       ├── hdb_listings.csv                   # Govt. HDB resale listing data
@@ -107,10 +107,10 @@ DSE3101-Project/
 │       ├── NParksParksandNatureReserves.geojson  # Parks and nature reserves (NParks)
 │       ├── Vaccination_Polyclinics.geojson    # Vaccination polyclinic locations
 │       ├── ResaleFlatPrices.zip               # Archived resale flat price CSVs
-│       ├── Resale Flat Prices (...) 1990-1999.csv          # Raw HDB resale transaction data, 1990–1999
-│       ├── Resale Flat Prices (...) Mar 2012-Dec 2014.csv  # Raw HDB resale transaction data, 2012–2014
-│       ├── Resale Flat Prices (...) Jan 2015-Dec 2016.csv  # Raw HDB resale transaction data, 2015–2016
-│       ├── Resale flat prices (...) Jan-2017 onwards.csv   # Raw HDB resale transaction data from Jan 2017 onwards
+│       ├── Resale Flat Prices (...) 1990-1999.csv          # Raw HDB resale data, 1990–1999
+│       ├── Resale Flat Prices (...) Mar 2012-Dec 2014.csv  # Raw HDB resale data, 2012–2014
+│       ├── Resale Flat Prices (...) Jan 2015-Dec 2016.csv  # Raw HDB resale data, 2015–2016
+│       ├── Resale flat prices (...) Jan-2017 onwards.csv   # Raw HDB resale data, Jan-2017 onwards
 │       ├── street_counts_progress.csv         # Intermediate progress cache for street-level counts
 │       ├── address_coords_cache.csv           # Cached geocoding results to reduce OneMap API calls
 │       └── correlation_heatmap.png            # Saved correlation heatmap from EDA
